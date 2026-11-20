@@ -1,0 +1,988 @@
+/* TBT Dictionary — the [tbt_dictionary] page.
+
+   Built from docs/prototypes/dictionary.html. Every colour is a Hub token
+   from tbt-tokens.css 2.2 (color-mix() of tokens where a tint is needed);
+   this file defines none of its own. The prototype's literal colours map
+   as the spec says: #4E6689 → --tbt-ink-soft, #8299B8 → --tbt-ink-faint,
+   the card hover border stays --tbt-border (shadow and lift carry the
+   hover), the shimmer runs --tbt-input → --tbt-selected-bg.
+
+   Tablet and desktop only (min 768 px): no phone layout. Divi styles bare
+   inputs, buttons and headings inside post content, so every rule is
+   scoped under .tbtdic and headings are pinned on the app's ID. */
+
+.tbtdic {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s5);
+	max-width: 1180px;
+	margin: 0 auto;
+	color: var(--tbt-ink);
+	font: 400 16px/1.5 var(--tbt-font-ui);
+	text-align: left;
+}
+
+.tbtdic *,
+.tbtdic *::before,
+.tbtdic *::after {
+	box-sizing: border-box;
+}
+
+.tbtdic [hidden] {
+	display: none !important;
+}
+
+.tbtdic h2,
+.tbtdic h3,
+.tbtdic p {
+	margin: 0;
+	padding: 0;
+}
+
+.tbtdic button,
+.tbtdic select,
+.tbtdic input {
+	margin: 0;
+	font: inherit;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.tbtdic button {
+	cursor: pointer;
+}
+
+.tbtdic button:focus-visible,
+.tbtdic a:focus-visible,
+.tbtdic select:focus-visible,
+.tbtdic input:focus-visible {
+	outline: none;
+	box-shadow: var(--tbt-focus-ring);
+}
+
+.tbtdic svg {
+	display: block;
+	flex: none;
+}
+
+.tbtdic .tbtdic-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+.tbtdic .tbtdic-muted {
+	color: var(--tbt-muted);
+}
+
+.tbtdic .tbtdic-loading,
+.tbtdic .tbtdic-empty {
+	padding: var(--tbt-s4) 0;
+	color: var(--tbt-muted);
+}
+
+.tbtdic .tbtdic-summary {
+	color: var(--tbt-muted);
+	font-size: 14px;
+}
+
+.tbtdic .tbtdic-app {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s5);
+	min-width: 0;
+}
+
+/* ---------- Admin Bar (Style Book v2 §7; two pill CTAs: a Dictionary
+   exception approved 20 Nov 2026) ---------- */
+
+.tbtdic .tbtdic-abar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.tbtdic .tbtdic-abar__title {
+	min-width: 234px;
+}
+
+.tbtdic .tbtdic-line {
+	flex: 1;
+	height: 1px;
+	background: var(--tbt-border);
+}
+
+.tbtdic .tbtdic-search {
+	position: relative;
+	flex: none;
+	width: 300px;
+}
+
+.tbtdic .tbtdic-search input {
+	width: 100%;
+	height: 44px;
+	padding: 0 40px;
+	border: 1px solid transparent;
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-input);
+	color: var(--tbt-ink);
+	font-size: 16px;
+}
+
+.tbtdic .tbtdic-search input::placeholder {
+	color: var(--tbt-ink-faint);
+}
+
+.tbtdic .tbtdic-search input:focus {
+	border-color: var(--tbt-blue);
+	outline: none;
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-focus-ring);
+}
+
+.tbtdic .tbtdic-search > svg {
+	position: absolute;
+	top: 13px;
+	left: 14px;
+	color: var(--tbt-muted);
+	pointer-events: none;
+}
+
+.tbtdic .tbtdic-search__x {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: none;
+	color: var(--tbt-muted);
+	font-size: 18px;
+	line-height: 1;
+}
+
+.tbtdic .tbtdic-search__x:hover {
+	background: var(--tbt-selected-bg);
+	color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-cta {
+	flex: none;
+	width: 250px;
+	height: 53px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-blue);
+	color: var(--tbt-surface);
+	font: 600 16px/1 var(--tbt-font-ui);
+	letter-spacing: var(--tbt-button-track);
+	text-transform: var(--tbt-button-case);
+}
+
+.tbtdic .tbtdic-cta:hover {
+	background: var(--tbt-blue-dark);
+}
+
+.tbtdic .tbtdic-cta--ghost {
+	background: var(--tbt-surface);
+	color: var(--tbt-blue);
+	box-shadow: inset 0 0 0 1.5px var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-cta--ghost:hover {
+	background: var(--tbt-selected-bg);
+}
+
+.tbtdic .tbtdic-cta--ghost:focus-visible {
+	box-shadow: inset 0 0 0 1.5px var(--tbt-blue), var(--tbt-focus-ring);
+}
+
+/* ---------- Tab strip (only when there is more than one tab: 0.2.0) ---------- */
+
+.tbtdic .tbtdic-tabs {
+	display: flex;
+	gap: var(--tbt-s1);
+	border-bottom: 1px solid var(--tbt-border);
+}
+
+.tbtdic .tbtdic-tabs button {
+	margin-bottom: -1px;
+	padding: 10px 18px 12px;
+	border: 0;
+	border-bottom: 3px solid transparent;
+	background: none;
+	color: var(--tbt-muted);
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-tabs button:hover,
+.tbtdic .tbtdic-tabs button[aria-selected="true"] {
+	color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-tabs button[aria-selected="true"] {
+	border-bottom-color: var(--tbt-blue);
+}
+
+/* ---------- Info strip: information only, so flat on the canvas — no box,
+   no background, no shadow (platform rule, 20 Nov 2026) ---------- */
+
+.tbtdic .tbtdic-stats {
+	display: flex;
+	align-items: stretch;
+}
+
+.tbtdic .tbtdic-stat {
+	padding: 2px var(--tbt-s6);
+	border-left: 1px solid var(--tbt-border);
+}
+
+.tbtdic .tbtdic-stat:first-child {
+	padding-left: var(--tbt-s1);
+	border-left: 0;
+}
+
+.tbtdic .tbtdic-stat__v {
+	color: var(--tbt-ink);
+	font: 700 26px/1.2 var(--tbt-font-content);
+	font-variant-numeric: tabular-nums;
+}
+
+.tbtdic .tbtdic-stat__k {
+	color: var(--tbt-muted);
+	font-size: 14px;
+}
+
+/* ---------- Stage (the white panel) ---------- */
+
+.tbtdic .tbtdic-stage {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: var(--tbt-s6) 40px;
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-panel);
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-shadow);
+}
+
+.tbtdic .tbtdic-message {
+	gap: var(--tbt-s4);
+	max-width: 640px;
+}
+
+/* ---------- Buttons ---------- */
+
+.tbtdic .tbtdic-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 40px;
+	padding: 0 20px;
+	border: 0;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-blue);
+	color: var(--tbt-surface);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-decoration: none;
+	text-transform: var(--tbt-button-case);
+}
+
+.tbtdic .tbtdic-btn:hover {
+	background: var(--tbt-blue-dark);
+	color: var(--tbt-surface);
+}
+
+.tbtdic .tbtdic-btn:disabled {
+	background: var(--tbt-input);
+	color: var(--tbt-ink-faint);
+	cursor: default;
+}
+
+.tbtdic .tbtdic-btn--tall {
+	height: 48px;
+}
+
+.tbtdic .tbtdic-btn--danger {
+	background: var(--tbt-error);
+}
+
+.tbtdic .tbtdic-btn--danger:hover {
+	background: color-mix(in srgb, var(--tbt-error) 85%, var(--tbt-ink));
+}
+
+.tbtdic .tbtdic-btn2 {
+	height: 36px;
+	padding: 0 14px;
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-surface);
+	color: var(--tbt-blue-dark);
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.tbtdic .tbtdic-btn2:hover {
+	background: var(--tbt-selected-bg);
+}
+
+.tbtdic .tbtdic-icon {
+	display: inline-grid;
+	flex: none;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 0;
+	border-radius: 10px;
+	background: none;
+	color: var(--tbt-muted);
+}
+
+.tbtdic .tbtdic-icon:hover,
+.tbtdic .tbtdic-icon[aria-expanded="true"] {
+	background: var(--tbt-selected-bg);
+	color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-lnk {
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--tbt-blue);
+	font: inherit;
+	font-weight: 600;
+	text-align: left;
+}
+
+.tbtdic .tbtdic-lnk:hover {
+	text-decoration: underline;
+}
+
+.tbtdic .tbtdic-back {
+	align-self: flex-start;
+	height: 40px;
+	padding: 0 var(--tbt-s4);
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-surface);
+	color: var(--tbt-blue-dark);
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-back:hover {
+	background: var(--tbt-selected-bg);
+}
+
+/* ---------- Progress meter ---------- */
+
+.tbtdic .tbtdic-prog {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--tbt-muted);
+	font: 500 13px/1 var(--tbt-font-identity);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.tbtdic .tbtdic-meter {
+	display: inline-block;
+	flex: 1;
+	min-width: 72px;
+	height: 6px;
+	overflow: hidden;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-input);
+}
+
+.tbtdic .tbtdic-meter i {
+	display: block;
+	height: 100%;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-blue);
+	transition: width .4s var(--tbt-ease);
+}
+
+.tbtdic .tbtdic-meter--full i {
+	background: var(--tbt-success);
+}
+
+.tbtdic .tbtdic-prog__v {
+	min-width: 52px;
+	text-align: right;
+}
+
+.tbtdic .tbtdic-tag {
+	display: inline-block;
+	padding: 5px 9px;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-input);
+	color: var(--tbt-blue-dark);
+	font: 500 12px/1 var(--tbt-font-ui);
+	white-space: nowrap;
+}
+
+/* ---------- Group cards: clickable, so white, shadow at rest, lift on
+   hover, an arrow by the name ---------- */
+
+.tbtdic .tbtdic-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: var(--tbt-s4);
+}
+
+.tbtdic .tbtdic-gcard {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s3);
+	padding: 20px var(--tbt-s5) var(--tbt-s4);
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-card);
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-shadow);
+	transition: box-shadow .2s var(--tbt-ease), transform .2s var(--tbt-ease);
+}
+
+.tbtdic .tbtdic-gcard:hover {
+	box-shadow: var(--tbt-shadow-raised);
+	transform: translateY(-2px);
+}
+
+.tbtdic .tbtdic-gcard__open {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s1);
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: none;
+	color: inherit;
+	text-align: left;
+}
+
+.tbtdic .tbtdic-gcard__name {
+	display: flex;
+	align-items: center;
+	gap: var(--tbt-s2);
+}
+
+.tbtdic .tbtdic-gcard__go {
+	color: var(--tbt-ink-faint);
+	transition: transform .2s var(--tbt-ease), color .2s;
+}
+
+.tbtdic .tbtdic-gcard__open:hover .tbtdic-gcard__name {
+	color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-gcard__open:hover .tbtdic-gcard__go {
+	color: var(--tbt-blue);
+	transform: translateX(3px);
+}
+
+.tbtdic .tbtdic-gcard__meta {
+	color: var(--tbt-muted);
+	font-size: 14px;
+}
+
+.tbtdic .tbtdic-gcard__foot {
+	display: flex;
+	align-items: center;
+	gap: var(--tbt-s2);
+	padding-top: var(--tbt-s1);
+}
+
+.tbtdic .tbtdic-gcard__foot .tbtdic-prog {
+	flex: 1;
+}
+
+/* ---------- ⋮ menu ---------- */
+
+.tbtdic .tbtdic-menuwrap {
+	position: relative;
+}
+
+.tbtdic .tbtdic-menu {
+	position: absolute;
+	top: 40px;
+	right: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	min-width: 200px;
+	padding: 6px;
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-shadow-raised);
+}
+
+.tbtdic .tbtdic-menu button {
+	padding: 9px var(--tbt-s3);
+	border: 0;
+	border-radius: 8px;
+	background: none;
+	color: var(--tbt-ink);
+	font-size: 15px;
+	text-align: left;
+}
+
+.tbtdic .tbtdic-menu button:hover {
+	background: var(--tbt-selected-bg);
+	color: var(--tbt-blue-dark);
+}
+
+.tbtdic .tbtdic-menu .tbtdic-menu__no {
+	color: var(--tbt-error);
+}
+
+.tbtdic .tbtdic-menu .tbtdic-menu__no:hover {
+	background: var(--tbt-error-bg);
+	color: var(--tbt-error);
+}
+
+/* ---------- Group page ---------- */
+
+.tbtdic .tbtdic-ghead {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--tbt-s5);
+}
+
+.tbtdic .tbtdic-ghead__t {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.tbtdic .tbtdic-ghead .tbtdic-prog {
+	width: 260px;
+}
+
+.tbtdic .tbtdic-adder {
+	display: grid;
+	grid-template-columns: 1fr 1fr auto;
+	gap: var(--tbt-s3);
+	align-items: end;
+}
+
+.tbtdic .tbtdic-fld {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.tbtdic .tbtdic-fld label {
+	color: var(--tbt-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-fld label span {
+	font-weight: 400;
+}
+
+.tbtdic .tbtdic-inp {
+	width: 100%;
+	height: 48px;
+	padding: 0 14px;
+	border: 1px solid transparent;
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-input);
+	color: var(--tbt-ink);
+	font: 400 17px/1 var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-inp::placeholder {
+	color: var(--tbt-ink-faint);
+}
+
+.tbtdic .tbtdic-inp:focus {
+	border-color: var(--tbt-blue);
+	outline: none;
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-focus-ring);
+}
+
+.tbtdic .tbtdic-inp--sm {
+	height: 40px;
+	font-size: 15px;
+}
+
+.tbtdic .tbtdic-inp--mono {
+	font-family: var(--tbt-font-identity);
+}
+
+.tbtdic .tbtdic-hint {
+	color: var(--tbt-muted);
+	font-size: 13px;
+}
+
+.tbtdic .tbtdic-hint b {
+	color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-kbd {
+	padding: 2px 6px;
+	border: 1px solid var(--tbt-border);
+	border-bottom-width: 2px;
+	border-radius: 6px;
+	background: var(--tbt-surface);
+	color: var(--tbt-ink);
+	font: 500 12px/1 var(--tbt-font-identity);
+}
+
+.tbtdic .tbtdic-err {
+	color: var(--tbt-error);
+	font-size: 14px;
+}
+
+/* ---------- Word rows ---------- */
+
+.tbtdic .tbtdic-words {
+	display: flex;
+	flex-direction: column;
+}
+
+.tbtdic .tbtdic-wrow {
+	display: grid;
+	grid-template-columns: 1fr 200px auto;
+	gap: var(--tbt-s5);
+	align-items: center;
+	padding: var(--tbt-s4) var(--tbt-s1);
+	border-bottom: 1px solid var(--tbt-border);
+}
+
+.tbtdic .tbtdic-wrow:last-child {
+	border-bottom: 0;
+}
+
+.tbtdic .tbtdic-wrow--new {
+	animation: tbtdic-flash 1.6s var(--tbt-ease);
+}
+
+@keyframes tbtdic-flash {
+	0% {
+		background: var(--tbt-selected-bg);
+	}
+
+	100% {
+		background: transparent;
+	}
+}
+
+.tbtdic .tbtdic-wmain {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s1);
+	min-width: 0;
+}
+
+.tbtdic .tbtdic-wline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--tbt-s3);
+}
+
+.tbtdic .tbtdic-wterm {
+	color: var(--tbt-blue);
+	font: 700 21px/1.25 var(--tbt-font-content);
+	overflow-wrap: anywhere;
+}
+
+/* The Flashcards IPA colour; IPA symbols fall back to the visitor's
+   monospace (see fonts.css). */
+.tbtdic .tbtdic-ipa {
+	color: var(--tbt-ink-soft);
+	font: 500 14px/1 var(--tbt-font-identity);
+}
+
+.tbtdic .tbtdic-say {
+	display: inline-grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--tbt-blue) 8%, transparent);
+	color: var(--tbt-blue);
+	transition: transform .15s, background .15s;
+}
+
+.tbtdic .tbtdic-say:hover,
+.tbtdic .tbtdic-say[aria-busy="true"] {
+	background: color-mix(in srgb, var(--tbt-blue) 16%, transparent);
+	transform: scale(1.06);
+}
+
+.tbtdic .tbtdic-wtr {
+	color: var(--tbt-ink);
+	font: 400 17px/1.4 var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-wex {
+	color: var(--tbt-muted);
+	font: italic 400 15px/1.5 var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-missing {
+	color: var(--tbt-ink-faint);
+	font: 500 14px var(--tbt-font-ui);
+}
+
+.tbtdic .tbtdic-shim {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--tbt-s2);
+	color: var(--tbt-ink-faint);
+	font-size: 14px;
+}
+
+.tbtdic .tbtdic-shim i {
+	width: 120px;
+	height: 10px;
+	border-radius: var(--tbt-radius-pill);
+	background: linear-gradient(90deg, var(--tbt-input) 0%, var(--tbt-selected-bg) 50%, var(--tbt-input) 100%);
+	background-size: 200% 100%;
+	animation: tbtdic-shimmer 1.1s linear infinite;
+}
+
+@keyframes tbtdic-shimmer {
+	from {
+		background-position: 200% 0;
+	}
+
+	to {
+		background-position: -200% 0;
+	}
+}
+
+.tbtdic .tbtdic-ingrp {
+	margin-left: var(--tbt-s1);
+}
+
+.tbtdic .tbtdic-wedit {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+.tbtdic .tbtdic-wedit .tbtdic-acts,
+.tbtdic .tbtdic-wedit .tbtdic-err {
+	grid-column: 1 / -1;
+}
+
+.tbtdic .tbtdic-acts {
+	display: flex;
+	gap: var(--tbt-s2);
+}
+
+/* ---------- Dialog and toast ---------- */
+
+.tbtdic .tbtdic-scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: grid;
+	place-items: center;
+	background: color-mix(in srgb, var(--tbt-ink) 35%, transparent);
+}
+
+.tbtdic .tbtdic-modal {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s4);
+	width: min(480px, 92vw);
+	max-height: 92vh;
+	overflow: auto;
+	padding: 28px var(--tbt-s6);
+	border-radius: var(--tbt-radius-panel);
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-shadow-raised);
+}
+
+.tbtdic .tbtdic-modal .tbtdic-acts {
+	justify-content: flex-end;
+}
+
+.tbtdic .tbtdic-select {
+	width: 100%;
+	height: 44px;
+	padding: 0 14px;
+	border: 1px solid transparent;
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-input);
+	color: var(--tbt-ink);
+}
+
+.tbtdic .tbtdic-added {
+	display: flex;
+	flex-direction: column;
+	gap: var(--tbt-s1);
+	padding: 10px 14px;
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-success-bg);
+	color: var(--tbt-success);
+	font-size: 14px;
+}
+
+.tbtdic .tbtdic-added b {
+	font-family: var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-toast {
+	position: fixed;
+	right: var(--tbt-s5);
+	bottom: var(--tbt-s5);
+	z-index: 100001;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: var(--tbt-s3) 20px var(--tbt-s3) 14px;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-blue);
+	color: var(--tbt-surface);
+	font-weight: 600;
+	box-shadow: var(--tbt-shadow-raised);
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(20px);
+	transition: .3s var(--tbt-ease);
+}
+
+.tbtdic .tbtdic-toast--on {
+	opacity: 1;
+	transform: none;
+}
+
+.tbtdic .tbtdic-toast__star {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--tbt-surface) 18%, transparent);
+}
+
+.tbtdic .tbtdic-toast small {
+	font-weight: 400;
+	opacity: .85;
+}
+
+/* ---------- Headings, pinned on the app's own ID ----------
+   Divi uppercases headings site-wide from ID-scoped selectors, which a
+   class-scoped rule cannot outrank (the TBT Points pattern). The login card
+   carries the same ID. */
+
+#tbtdic-app h2.tbtdic-abar__title {
+	margin: 0;
+	padding: 0;
+	color: var(--tbt-blue);
+	font: 700 28px/1.2 var(--tbt-font-content);
+	letter-spacing: -.01em;
+	text-transform: none;
+}
+
+#tbtdic-app h2.tbtdic-stage__title,
+#tbtdic-app h2.tbtdic-modal__title {
+	margin: 0;
+	padding: 0;
+	color: var(--tbt-ink);
+	font: 700 22px/1.25 var(--tbt-font-content);
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+#tbtdic-app h2.tbtdic-ghead__title {
+	margin: 0;
+	padding: 0;
+	color: var(--tbt-blue);
+	font: 700 28px/1.25 var(--tbt-font-content);
+	letter-spacing: -.01em;
+	text-transform: none;
+	overflow-wrap: anywhere;
+}
+
+#tbtdic-app h3.tbtdic-gcard__name {
+	margin: 0;
+	padding: 0;
+	color: var(--tbt-ink);
+	font: 700 20px/1.25 var(--tbt-font-content);
+	letter-spacing: normal;
+	text-transform: none;
+	overflow-wrap: anywhere;
+}
+
+#tbtdic-app .tbtdic-gcard__open:hover h3.tbtdic-gcard__name {
+	color: var(--tbt-blue);
+}
+
+/* ---------- Tablet (768–1023 px) ---------- */
+
+@media (max-width: 1023px) {
+	.tbtdic .tbtdic-abar {
+		flex-wrap: wrap;
+	}
+
+	/* Title on its own row; search and the two CTAs share the next. */
+	.tbtdic .tbtdic-abar__title {
+		flex-basis: 100%;
+		min-width: 0;
+	}
+
+	.tbtdic .tbtdic-line {
+		display: none;
+	}
+
+	.tbtdic .tbtdic-search {
+		flex: 1;
+		width: auto;
+		min-width: 200px;
+	}
+
+	.tbtdic .tbtdic-cta {
+		width: 200px;
+	}
+
+	.tbtdic .tbtdic-stage {
+		padding: var(--tbt-s5);
+	}
+
+	.tbtdic .tbtdic-wrow {
+		grid-template-columns: 1fr 150px auto;
+		gap: var(--tbt-s4);
+	}
+
+	.tbtdic .tbtdic-ghead {
+		flex-wrap: wrap;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tbtdic *,
+	.tbtdic *::before,
+	.tbtdic *::after {
+		animation: none !important;
+		transition: none !important;
+	}
+}
