@@ -14,6 +14,9 @@
  *   PATCH  /words/{id}            edit or move
  *   DELETE /words/{id}            delete
  *   POST   /words/{id}/reset      progress 0
+ *   POST   /words/{id}/answer     a game answer {correct}: progress ± (0.2.0)
+ *   POST   /games/finish          a finished round {type, group_ids, score,
+ *                                 total}: one Notes activity row (0.2.0)
  *
  * Every route: logged in only; the user is always the session user and no
  * route takes a user_id. Another user's row is 404, never 403. Cookie
@@ -89,6 +92,16 @@ class TBTDIC_Rest {
 			'callback'            => array( $this, 'reset_word' ),
 			'permission_callback' => $can,
 		) );
+		register_rest_route( self::NS, '/words/' . $id . '/answer', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'answer_word' ),
+			'permission_callback' => $can,
+		) );
+		register_rest_route( self::NS, '/games/finish', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'finish_game' ),
+			'permission_callback' => $can,
+		) );
 	}
 
 	/* ---------- Permission ---------- */
@@ -126,8 +139,9 @@ class TBTDIC_Rest {
 		return self::respond(
 			array(
 				'groups' => $groups,
-				'words'  => array_map( array( __CLASS__, 'word_out' ), $words ),
-				'learnt' => TBTDIC_LEARNT_DEFAULT,
+				'words'    => array_map( array( __CLASS__, 'word_out' ), $words ),
+				'learnt'   => TBTDIC_Settings::learning()['learnt'],
+				'settings' => TBTDIC_Settings::learning(),
 			)
 		);
 	}
@@ -351,6 +365,133 @@ class TBTDIC_Rest {
 		return self::respond( array( 'word' => self::word_out( TBTDIC_DB::word( $user, (int) $word['id'] ) ) ) );
 	}
 
+	/* ---------- Games (0.2.0) ---------- */
+
+	/**
+	 * One game answer: progress + right or − wrong, within 0 … learnt.
+	 * Called after every answer, so progress stays even when the round is
+	 * abandoned.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function answer_word( WP_REST_Request $req ) {
+		$user = get_current_user_id();
+		$word = TBTDIC_DB::word( $user, (int) $req['id'] );
+		if ( ! $word ) {
+			return self::not_found();
+		}
+		$correct = $req->get_param( 'correct' );
+		if ( null === $correct || ! in_array( $correct, array( true, false, 1, 0, '1', '0', 'true', 'false' ), true ) ) {
+			return self::error( 'tbtdic_bad_answer', __( 'Say whether the answer was right.', 'tbt-dictionary' ), 400 );
+		}
+		$set      = TBTDIC_Settings::learning();
+		$progress = TBTDIC_Words::answer( $word['progress'], rest_sanitize_boolean( $correct ), $set['right'], $set['wrong'], $set['learnt'] );
+		TBTDIC_DB::update_word( $user, (int) $word['id'], array( 'progress' => $progress ) );
+		return self::respond( array( 'word' => self::word_out( TBTDIC_DB::word( $user, (int) $word['id'] ) ) ) );
+	}
+
+	/**
+	 * A finished round: one row in the Notes activity log (TBT Results, the
+	 * Class Progress panel and, through Notes, TBT Points). The score comes
+	 * from the browser, as in Swipe and Drill; Points' repeat rule and daily
+	 * cap limit what a replay earns. Never fails because Notes or Points is
+	 * missing.
+	 *
+	 * @param WP_REST_Request $req Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function finish_game( WP_REST_Request $req ) {
+		$user = get_current_user_id();
+		$type = (string) $req->get_param( 'type' );
+		if ( ! isset( TBTDIC_Words::GAMES[ $type ] ) ) {
+			return self::error( 'tbtdic_bad_game', __( 'Unknown game.', 'tbt-dictionary' ), 400 );
+		}
+
+		$raw = $req->get_param( 'group_ids' );
+		if ( ! is_array( $raw ) || ! $raw || count( $raw ) > TBTDIC_Words::MAX_GROUPS ) {
+			return self::error( 'tbtdic_bad_groups', __( 'Choose at least one group.', 'tbt-dictionary' ), 400 );
+		}
+		$ids = array();
+		foreach ( $raw as $gid ) {
+			if ( ! is_numeric( $gid ) || (int) $gid <= 0 ) {
+				return self::not_found();
+			}
+			$ids[ (int) $gid ] = true;
+		}
+		// Every group must be the user's; the names in the order the page shows them.
+		$names = array();
+		foreach ( TBTDIC_DB::groups( $user ) as $g ) {
+			if ( isset( $ids[ (int) $g['id'] ] ) ) {
+				$names[] = (string) $g['name'];
+				unset( $ids[ (int) $g['id'] ] );
+			}
+		}
+		if ( $ids || ! $names ) {
+			return self::not_found();
+		}
+		$group_ids = array_map( 'intval', array_unique( array_map( 'intval', $raw ) ) );
+
+		$score = $req->get_param( 'score' );
+		$total = $req->get_param( 'total' );
+		if ( ! self::is_int_like( $score ) || ! self::is_int_like( $total ) ) {
+			return self::error( 'tbtdic_bad_score', __( 'That score is not valid.', 'tbt-dictionary' ), 400 );
+		}
+		$score = (int) $score;
+		$total = (int) $total;
+		if ( $total < 1 || $total > TBTDIC_Words::MAX_WORDS || $score < 0 || $score > $total ) {
+			return self::error( 'tbtdic_bad_score', __( 'That score is not valid.', 'tbt-dictionary' ), 400 );
+		}
+
+		$row_id = 0;
+		if ( function_exists( 'tbt_notes_record_activity' ) ) {
+			try {
+				$id = tbt_notes_record_activity(
+					array(
+						'user_id'      => $user,
+						'tool'         => 'dictionary',
+						'object_ref'   => TBTDIC_Words::game_ref( $type, $group_ids ),
+						'object_title' => TBTDIC_Words::game_title( $type, $names ),
+						'score'        => $score,
+						'score_max'    => $total,
+					)
+				);
+				// A WP_Error (e.g. a teacher in no class) is not recorded.
+				if ( is_int( $id ) && $id > 0 ) {
+					$row_id = $id;
+				}
+			} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Notes failing never fails the game.
+			}
+		}
+
+		$points = 0;
+		if ( $row_id > 0 && function_exists( 'tbtp_points_for_activity' ) ) {
+			try {
+				$points = max( 0, (int) tbtp_points_for_activity( $row_id ) );
+			} catch ( \Throwable $e ) {
+				$points = 0;
+			}
+		}
+
+		return self::respond(
+			array(
+				'recorded' => $row_id > 0,
+				'points'   => $points,
+			)
+		);
+	}
+
+	/**
+	 * An int, or a string of digits (JSON or form body).
+	 *
+	 * @param mixed $v Value.
+	 * @return bool
+	 */
+	private static function is_int_like( $v ) {
+		return is_int( $v ) || ( is_string( $v ) && preg_match( '/^\d{1,9}$/', $v ) );
+	}
+
 	/* ---------- Helpers ---------- */
 
 	/**
@@ -436,9 +577,10 @@ class TBTDIC_Rest {
 	 * @return array
 	 */
 	private static function group_out( array $g, array $progresses ) {
+		$learnt  = TBTDIC_Settings::learning()['learnt'];
 		$learned = 0;
 		foreach ( $progresses as $p ) {
-			if ( TBTDIC_Words::is_learned( $p ) ) {
+			if ( TBTDIC_Words::is_learned( $p, $learnt ) ) {
 				++$learned;
 			}
 		}
@@ -447,7 +589,7 @@ class TBTDIC_Rest {
 			'name'       => (string) $g['name'],
 			'word_count' => count( $progresses ),
 			'learned'    => $learned,
-			'percent'    => TBTDIC_Words::group_percent( $progresses ),
+			'percent'    => TBTDIC_Words::group_percent( $progresses, $learnt ),
 			'created_at' => (string) $g['created_at'],
 		);
 	}
@@ -469,7 +611,7 @@ class TBTDIC_Rest {
 			'phonetic'    => (string) $w['phonetic'],
 			'example'     => (string) $w['example'],
 			'progress'    => (float) $w['progress'],
-			'percent'     => TBTDIC_Words::percent( $w['progress'] ),
+			'percent'     => TBTDIC_Words::percent( $w['progress'], TBTDIC_Settings::learning()['learnt'] ),
 			'ai_status'   => (string) $w['ai_status'],
 			'created_at'  => (string) $w['created_at'],
 		);

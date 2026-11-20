@@ -889,6 +889,391 @@
 	opacity: .85;
 }
 
+/* ---------- Play buttons (0.2.0) ---------- */
+
+.tbtdic .tbtdic-btn2:disabled {
+	background: var(--tbt-surface);
+	color: var(--tbt-ink-faint);
+	cursor: default;
+}
+
+/* The wrapper carries the tooltip: a disabled button shows none in every browser. */
+.tbtdic .tbtdic-playwrap {
+	display: inline-flex;
+	flex: none;
+}
+
+/* ---------- Games (0.2.0) ---------- */
+
+.tbtdic .tbtdic-gpick {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: var(--tbt-s4);
+}
+
+/* A clickable card: shadow at rest, lift on hover. */
+.tbtdic .tbtdic-gopt {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 20px var(--tbt-s5);
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-card);
+	background: var(--tbt-surface);
+	box-shadow: var(--tbt-shadow);
+	text-align: left;
+	transition: border-color .15s, background .15s, box-shadow .2s var(--tbt-ease), transform .2s var(--tbt-ease);
+}
+
+.tbtdic button.tbtdic-gopt:hover {
+	box-shadow: var(--tbt-shadow-raised);
+	transform: translateY(-2px);
+}
+
+.tbtdic .tbtdic-gopt[aria-pressed="true"] {
+	border-color: var(--tbt-blue);
+	background: var(--tbt-selected-bg);
+}
+
+.tbtdic .tbtdic-gopt b {
+	color: var(--tbt-blue);
+	font: 700 19px/1.25 var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-gopt span {
+	color: var(--tbt-muted);
+	font-size: 14px;
+}
+
+/* Not clickable, so it must not look it: flat, dashed, no hover. */
+.tbtdic .tbtdic-gopt--soon {
+	border-style: dashed;
+	background: none;
+	box-shadow: none;
+	cursor: default;
+}
+
+.tbtdic .tbtdic-gopt--soon b {
+	color: var(--tbt-ink-faint);
+}
+
+.tbtdic .tbtdic-setrow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--tbt-s3) var(--tbt-s4);
+}
+
+.tbtdic .tbtdic-setrow--go {
+	margin-top: var(--tbt-s2);
+}
+
+.tbtdic .tbtdic-setrow--center {
+	justify-content: center;
+}
+
+.tbtdic .tbtdic-setrow__lab {
+	min-width: 150px;
+	color: var(--tbt-ink);
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-chips {
+	display: flex;
+	flex: 1;
+	flex-wrap: wrap;
+	gap: var(--tbt-s2);
+}
+
+.tbtdic .tbtdic-chip {
+	padding: 8px 14px;
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-surface);
+	color: var(--tbt-ink);
+	font-size: 15px;
+	font-weight: 500;
+}
+
+.tbtdic .tbtdic-chip small {
+	margin-left: 4px;
+	color: var(--tbt-muted);
+	font-size: inherit;
+	font-weight: 400;
+}
+
+.tbtdic .tbtdic-chip:hover {
+	border-color: var(--tbt-blue);
+}
+
+.tbtdic .tbtdic-chip[aria-pressed="true"] {
+	border-color: var(--tbt-blue);
+	background: var(--tbt-selected-bg);
+	color: var(--tbt-blue-dark);
+}
+
+.tbtdic .tbtdic-chip[aria-pressed="true"]::before {
+	content: "✓ ";
+}
+
+.tbtdic .tbtdic-select--n {
+	width: 200px;
+}
+
+.tbtdic .tbtdic-cta:disabled {
+	background: var(--tbt-input);
+	color: var(--tbt-ink-faint);
+	cursor: default;
+}
+
+.tbtdic .tbtdic-warn {
+	color: var(--tbt-error);
+	font-size: 14px;
+}
+
+/* A round and its end screen */
+
+.tbtdic .tbtdic-play {
+	align-items: center;
+	padding: 40px 48px;
+	text-align: center;
+}
+
+.tbtdic .tbtdic-ptop {
+	display: flex;
+	align-self: stretch;
+	align-items: center;
+	gap: var(--tbt-s4);
+}
+
+.tbtdic .tbtdic-ptop .tbtdic-meter {
+	height: 8px;
+}
+
+.tbtdic .tbtdic-count {
+	color: var(--tbt-muted);
+	font: 500 13px/1 var(--tbt-font-identity);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.tbtdic .tbtdic-ptop .tbtdic-count:first-child {
+	text-transform: uppercase;
+	letter-spacing: .12em;
+}
+
+.tbtdic .tbtdic-ask {
+	color: var(--tbt-ink-faint);
+	font: 700 13px/1 var(--tbt-font-identity);
+	letter-spacing: .18em;
+	text-transform: uppercase;
+}
+
+.tbtdic .tbtdic-promptwrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+.tbtdic .tbtdic-prompt {
+	color: var(--tbt-blue);
+	font: 700 40px/1.2 var(--tbt-font-content);
+	overflow-wrap: anywhere;
+	text-wrap: balance;
+}
+
+.tbtdic .tbtdic-prompt--tr {
+	color: var(--tbt-ink);
+}
+
+.tbtdic .tbtdic-wline--center {
+	justify-content: center;
+}
+
+.tbtdic .tbtdic-opts {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--tbt-s3);
+	width: 100%;
+	max-width: 760px;
+}
+
+.tbtdic .tbtdic-opt {
+	position: relative;
+	min-height: 64px;
+	padding: 14px 18px 14px 52px;
+	border: 1px solid var(--tbt-border);
+	border-radius: var(--tbt-radius-control);
+	background: var(--tbt-surface);
+	color: var(--tbt-ink);
+	font: 400 18px/1.35 var(--tbt-font-content);
+	text-align: left;
+	overflow-wrap: anywhere;
+	transition: border-color .15s, background .15s;
+}
+
+.tbtdic .tbtdic-opt:hover:not(:disabled) {
+	border-color: var(--tbt-blue);
+	background: var(--tbt-selected-bg);
+}
+
+.tbtdic .tbtdic-opt:disabled {
+	cursor: default;
+}
+
+.tbtdic .tbtdic-opt__k {
+	position: absolute;
+	top: 50%;
+	left: 16px;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border: 1px solid var(--tbt-border);
+	border-radius: 6px;
+	color: var(--tbt-muted);
+	font: 500 12px/1 var(--tbt-font-identity);
+	transform: translateY(-50%);
+}
+
+.tbtdic .tbtdic-opt--right {
+	border-color: var(--tbt-success);
+	background: var(--tbt-success-bg);
+	color: var(--tbt-success);
+}
+
+.tbtdic .tbtdic-opt--right .tbtdic-opt__k {
+	border-color: var(--tbt-success);
+	color: var(--tbt-success);
+}
+
+.tbtdic .tbtdic-opt--wrong {
+	border-color: var(--tbt-error);
+	background: var(--tbt-error-bg);
+	color: var(--tbt-error);
+	animation: tbtdic-jit .32s;
+}
+
+.tbtdic .tbtdic-opt--wrong .tbtdic-opt__k {
+	border-color: var(--tbt-error);
+	color: var(--tbt-error);
+}
+
+@keyframes tbtdic-jit {
+	20% { transform: translateX(-5px); }
+	40% { transform: translateX(5px); }
+	60% { transform: translateX(-3px); }
+	80% { transform: translateX(3px); }
+}
+
+.tbtdic .tbtdic-fb {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	gap: var(--tbt-s4);
+	min-height: 48px;
+}
+
+.tbtdic .tbtdic-fb__ok {
+	color: var(--tbt-success);
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-fb__no {
+	color: var(--tbt-error);
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-big {
+	color: var(--tbt-blue);
+	font: 700 56px/1 var(--tbt-font-content);
+	font-variant-numeric: tabular-nums;
+}
+
+.tbtdic .tbtdic-newly {
+	color: var(--tbt-success);
+}
+
+.tbtdic .tbtdic-saved {
+	display: flex;
+	align-items: center;
+	gap: var(--tbt-s3);
+}
+
+.tbtdic .tbtdic-saved__pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 14px;
+	border-radius: var(--tbt-radius-pill);
+	background: var(--tbt-success-bg);
+	color: var(--tbt-success);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.tbtdic .tbtdic-saved__pts {
+	color: var(--tbt-blue);
+	font-weight: 700;
+}
+
+.tbtdic table.tbtdic-rt {
+	width: 100%;
+	max-width: 820px;
+	margin: 0;
+	border: 0;
+	border-collapse: collapse;
+	text-align: left;
+}
+
+.tbtdic .tbtdic-rt th {
+	padding: 0 var(--tbt-s3) 10px;
+	border: 0;
+	border-bottom: 1px solid var(--tbt-border);
+	background: none;
+	color: var(--tbt-muted);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.tbtdic .tbtdic-rt td {
+	padding: var(--tbt-s3);
+	border: 0;
+	border-bottom: 1px solid var(--tbt-border);
+	background: none;
+	vertical-align: middle;
+}
+
+.tbtdic .tbtdic-rt tr:last-child td {
+	border-bottom: 0;
+}
+
+.tbtdic .tbtdic-rt__w {
+	color: var(--tbt-blue);
+	font: 700 17px var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-rt__tr {
+	font-family: var(--tbt-font-content);
+}
+
+.tbtdic .tbtdic-rt .tbtdic-prog {
+	min-width: 180px;
+}
+
+.tbtdic .tbtdic-rt__ok {
+	color: var(--tbt-success);
+	font-weight: 700;
+}
+
+.tbtdic .tbtdic-rt__no {
+	color: var(--tbt-error);
+	font-weight: 700;
+}
+
 /* ---------- Headings, pinned on the app's own ID ----------
    Divi uppercases headings site-wide from ID-scoped selectors, which a
    class-scoped rule cannot outrank (the TBT Points pattern). The login card
@@ -975,6 +1360,14 @@
 
 	.tbtdic .tbtdic-ghead {
 		flex-wrap: wrap;
+	}
+
+	.tbtdic .tbtdic-gpick {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.tbtdic .tbtdic-play {
+		padding: var(--tbt-s5);
 	}
 }
 

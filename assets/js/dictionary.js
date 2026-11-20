@@ -8,6 +8,10 @@
  *
  * Typed text lives in state (st.quick, st.modal, st.edit), so a background
  * re-render — a word's AI fill-in arriving — never loses it.
+ *
+ * Games (0.2.0): Find the translation / Find the word. Every answer goes to
+ * POST /words/{id}/answer at once (progress is kept even if the round is
+ * abandoned); only a finished round goes to POST /games/finish.
  */
 ( function () {
 	'use strict';
@@ -18,9 +22,16 @@
 		return;
 	}
 
-	const LEARNT = Number( CFG.learnt ) > 0 ? Number( CFG.learnt ) : 10;
-	// One tab in 0.1.0, so no strip; 0.2.0 adds Games, 0.3.0 Import.
-	const TABS = [ [ 'groups', 'Groups' ] ];
+	// The Learning settings; /state sends the ones in force.
+	const SET = { learnt: Number( CFG.learnt ) > 0 ? Number( CFG.learnt ) : 10, right: 1, wrong: 0.25 };
+	// 0.2.0 adds Games; Import comes in 0.3.0.
+	const TABS = [ [ 'groups', 'Groups' ], [ 'games', 'Games' ] ];
+	const GAMES = {
+		tr: [ 'Find the translation', 'See the English word, pick the translation.' ],
+		w: [ 'Find the word', 'See the translation, pick the English word.' ],
+	};
+	const MIN_PLAY = 5;
+	const NEEDS = 'Needs at least 5 words you haven’t learned yet';
 	const ID = ( s ) => 'tbtdic-' + s;
 
 	/* ---------- Helpers ---------- */
@@ -28,8 +39,10 @@
 	const esc = ( s ) => String( s == null ? '' : s ).replace( /[&<>"']/g, ( c ) => ( { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ c ] ) );
 	const fold = ( s ) => String( s == null ? '' : s ).toLowerCase().normalize( 'NFD' ).replace( /[̀-ͯ]/g, '' ).replace( /ł/g, 'l' );
 	const plural = ( n, one, many ) => n + ' ' + ( n === 1 ? one : ( many || one + 's' ) );
-	const wpct = ( w ) => Math.max( 0, Math.min( 100, ( Number( w.progress ) || 0 ) / LEARNT * 100 ) );
-	const learned = ( w ) => ( Number( w.progress ) || 0 ) >= LEARNT;
+	const wpct = ( w ) => Math.max( 0, Math.min( 100, ( Number( w.progress ) || 0 ) / SET.learnt * 100 ) );
+	const learned = ( w ) => ( Number( w.progress ) || 0 ) >= SET.learnt;
+	// Playable in a game: not learned and has a translation.
+	const playable = ( w ) => ! learned( w ) && String( w.translation || '' ).trim() !== '';
 	const fmtPct = ( p ) => String( Math.round( p * 10 ) / 10 ) + '%';
 	const byId = ( id ) => document.getElementById( ID( id ) );
 
@@ -57,6 +70,8 @@
 		flash: null,
 		modal: null,
 		quick: { w: '', tr: '', err: '', busy: false },
+		game: { type: 'tr', groups: [], n: '10' },
+		play: null,
 	};
 
 	const group = ( id ) => st.groups.find( ( g ) => g.id === id ) || null;
@@ -66,6 +81,7 @@
 		const k = fold( String( t ).trim() );
 		return k ? st.groups.find( ( g ) => fold( g.name.trim() ) === k ) || null : null;
 	};
+	const oldestFirst = ( a, b ) => ( a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id - b.id );
 	function gpct( gid ) {
 		const ws = inGroup( gid );
 		return ws.length ? ws.reduce( ( t, w ) => t + wpct( w ), 0 ) / ws.length : 0;
@@ -252,7 +268,8 @@
 	}
 
 	function tabs() {
-		if ( TABS.length < 2 ) {
+		// Hidden while searching.
+		if ( TABS.length < 2 || st.q.trim() ) {
 			return '';
 		}
 		return '<div class="tbtdic-tabs" role="tablist">' + TABS.map( ( t ) => '<button type="button" role="tab" data-tab="' + t[ 0 ] + '" aria-selected="' + ( st.tab === t[ 0 ] && ! st.q ) + '">' + esc( t[ 1 ] ) + '</button>' ).join( '' ) + '</div>';
@@ -266,6 +283,19 @@
 			'<div class="tbtdic-stat"><div class="tbtdic-stat__v">' + st.groups.length + '</div><div class="tbtdic-stat__k">groups</div></div></div>';
 	}
 
+	/**
+	 * Play on a group card or the group page header: opens Games with only
+	 * this group chosen. Disabled below 5 playable words; the tooltip sits on
+	 * a wrapper because a disabled button shows no tooltip in every browser.
+	 */
+	function playBtn( g, label ) {
+		const n = inGroup( g.id ).filter( playable ).length;
+		if ( n < MIN_PLAY ) {
+			return '<span class="tbtdic-playwrap" title="' + esc( NEEDS ) + '"><button class="tbtdic-btn2" type="button" disabled aria-label="' + esc( label + ': ' + NEEDS ) + '">' + esc( label ) + '</button></span>';
+		}
+		return '<button class="tbtdic-btn2" type="button" data-play="' + g.id + '">' + esc( label ) + '</button>';
+	}
+
 	function groupMenu( key, g ) {
 		return '<div class="tbtdic-menuwrap"><button class="tbtdic-icon" type="button" data-menu="' + key + '" aria-label="More for ' + esc( g.name ) + '" aria-haspopup="true" aria-expanded="' + ( st.menu === key ) + '">' + IC.dots + '</button>' +
 			( st.menu === key ? '<div class="tbtdic-menu" role="menu">' +
@@ -277,7 +307,7 @@
 
 	function groupsList() {
 		// Oldest first.
-		const gs = st.groups.slice().sort( ( a, b ) => ( a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id - b.id ) );
+		const gs = st.groups.slice().sort( oldestFirst );
 		if ( ! gs.length ) {
 			return stats() + '<section class="tbtdic-stage"><h2 class="tbtdic-stage__title">Start your dictionary</h2>' +
 				'<p class="tbtdic-muted">Make a group for a topic (e.g. “Work” or “Idioms”) and add the new words you meet in lessons.</p>' +
@@ -289,7 +319,7 @@
 			return '<article class="tbtdic-gcard">' +
 				'<button class="tbtdic-gcard__open" type="button" data-open="' + g.id + '"><h3 class="tbtdic-gcard__name">' + esc( g.name ) + IC.go + '</h3>' +
 				'<span class="tbtdic-gcard__meta">' + plural( ws.length, 'word' ) + ' · ' + l + ' learned</span></button>' +
-				'<div class="tbtdic-gcard__foot">' + prog( gpct( g.id ) ) + groupMenu( 'g' + g.id, g ) + '</div></article>';
+				'<div class="tbtdic-gcard__foot">' + prog( gpct( g.id ) ) + playBtn( g, 'Play' ) + groupMenu( 'g' + g.id, g ) + '</div></article>';
 		} ).join( '' ) + '</div>';
 	}
 
@@ -357,7 +387,7 @@
 		return '<button class="tbtdic-back" type="button" data-act="home">← All groups</button>' +
 			'<div class="tbtdic-ghead"><div class="tbtdic-ghead__t"><h2 class="tbtdic-ghead__title">' + esc( g.name ) + '</h2>' +
 				'<span class="tbtdic-summary">' + plural( ws.length, 'word' ) + ' · ' + l + ' learned</span></div>' +
-				prog( gpct( g.id ) ) + groupMenu( 'h' + g.id, g ) + '</div>' +
+				prog( gpct( g.id ) ) + playBtn( g, 'Play this group' ) + groupMenu( 'h' + g.id, g ) + '</div>' +
 			'<section class="tbtdic-stage">' +
 				'<div class="tbtdic-adder">' +
 					'<div class="tbtdic-fld"><label for="' + ID( 'nw' ) + '">English word or phrase</label><input class="tbtdic-inp" id="' + ID( 'nw' ) + '" data-quick="w" autocomplete="off" maxlength="120" placeholder="e.g. resilient" value="' + esc( q.w ) + '"></div>' +
@@ -378,6 +408,286 @@
 			.sort( ( a, b ) => a.term.localeCompare( b.term ) );
 		return '<p class="tbtdic-summary">' + plural( ws.length, 'word' ) + ' match “' + esc( raw ) + '” · <button class="tbtdic-lnk" type="button" data-act="clear">Clear search</button></p>' +
 			'<section class="tbtdic-stage"><div class="tbtdic-words">' + ( ws.length ? ws.map( ( w ) => wordRow( w, true ) ).join( '' ) : '<p class="tbtdic-empty">No words match your search.</p>' ) + '</div></section>';
+	}
+
+	/* ---------- Games ---------- */
+
+	function shuffle( a ) {
+		const r = a.slice();
+		for ( let i = r.length - 1; i > 0; i-- ) {
+			const j = Math.floor( Math.random() * ( i + 1 ) );
+			const t = r[ i ];
+			r[ i ] = r[ j ];
+			r[ j ] = t;
+		}
+		return r;
+	}
+
+	// The chosen groups that still exist, in the order shown.
+	function chosenGroups() {
+		return st.groups.slice().sort( oldestFirst ).filter( ( g ) => st.game.groups.indexOf( g.id ) >= 0 );
+	}
+
+	function pool() {
+		const ids = chosenGroups().map( ( g ) => g.id );
+		return st.words.filter( ( w ) => ids.indexOf( w.group_id ) >= 0 && playable( w ) );
+	}
+
+	function roundSize( n ) {
+		return st.game.n === 'all' ? n : Math.min( Number( st.game.n ) || 10, n );
+	}
+
+	function gamesSetup() {
+		const chosen = chosenGroups();
+		const n = pool().length;
+		const gs = st.groups.slice().sort( oldestFirst );
+		let why;
+		if ( ! chosen.length ) {
+			why = '<span class="tbtdic-summary">Pick at least one group.</span>';
+		} else if ( n < MIN_PLAY ) {
+			why = '<span class="tbtdic-warn">You need at least 5 words you haven’t learned yet. ' + ( chosen.length > 1 ? 'These groups have ' : 'This group has ' ) + n + '.</span>';
+		} else {
+			why = '<span class="tbtdic-summary">' + plural( roundSize( n ), 'word' ) + ' from ' + plural( chosen.length, 'group' ) + '.</span>';
+		}
+		return '<section class="tbtdic-stage">' +
+			'<h2 class="tbtdic-stage__title">1. Choose a game</h2>' +
+			'<div class="tbtdic-gpick">' +
+				Object.keys( GAMES ).map( ( k ) => '<button class="tbtdic-gopt" type="button" data-gtype="' + k + '" aria-pressed="' + ( st.game.type === k ) + '"><b>' + esc( GAMES[ k ][ 0 ] ) + '</b><span>' + esc( GAMES[ k ][ 1 ] ) + '</span></button>' ).join( '' ) +
+				'<div class="tbtdic-gopt tbtdic-gopt--soon"><b>More games coming</b><span>Play your words in Swipe, Matching Game and more.</span></div>' +
+			'</div>' +
+			'<h2 class="tbtdic-stage__title">2. Choose your words</h2>' +
+			'<div class="tbtdic-setrow"><span class="tbtdic-setrow__lab">Groups</span><div class="tbtdic-chips">' +
+				( gs.length ? gs.map( ( g ) => '<button class="tbtdic-chip" type="button" data-gg="' + g.id + '" aria-pressed="' + ( st.game.groups.indexOf( g.id ) >= 0 ) + '">' + esc( g.name ) + '<small>' + inGroup( g.id ).filter( playable ).length + ' to learn</small></button>' ).join( '' )
+					: '<span class="tbtdic-summary">You have no groups yet. Add a group and some words first.</span>' ) +
+			'</div></div>' +
+			'<div class="tbtdic-setrow"><label class="tbtdic-setrow__lab" for="' + ID( 'gn' ) + '">Number of words</label>' +
+				'<select class="tbtdic-select tbtdic-select--n" id="' + ID( 'gn' ) + '">' + [ '5', '10', '15', '20', 'all' ].map( ( v ) => '<option value="' + v + '"' + ( st.game.n === v ? ' selected' : '' ) + '>' + ( v === 'all' ? 'All' : v ) + '</option>' ).join( '' ) + '</select>' +
+				'<span class="tbtdic-summary">Learned words are left out.</span></div>' +
+			'<div class="tbtdic-setrow tbtdic-setrow--go"><button class="tbtdic-cta" type="button" data-act="start"' + ( n < MIN_PLAY ? ' disabled' : '' ) + '>Start</button>' + why + '</div>' +
+		'</section>';
+	}
+
+	/**
+	 * Four options: the right one and three others from the whole dictionary,
+	 * no two with the same text. A word that shares the question's prompt
+	 * (two words with one translation) is left out too, or it would also be
+	 * right.
+	 */
+	function options( w, key ) {
+		const other = key === 'term' ? 'translation' : 'term';
+		const prompt = fold( String( w[ other ] ).trim() );
+		const seen = new Set( [ fold( String( w[ key ] ).trim() ) ] );
+		const others = [];
+		shuffle( st.words.filter( ( o ) => o.id !== w.id && String( o.translation || '' ).trim() !== '' && fold( String( o[ other ] ).trim() ) !== prompt ) ).some( ( o ) => {
+			const k = fold( String( o[ key ] ).trim() );
+			if ( k && ! seen.has( k ) ) {
+				seen.add( k );
+				others.push( o );
+			}
+			return others.length >= 3;
+		} );
+		return shuffle( [ w ].concat( others ) ).map( ( o ) => ( { id: o.id, text: o[ key ] } ) );
+	}
+
+	/** A new round with the current settings; none when fewer than 5 words are playable. */
+	function startGame() {
+		const pl = shuffle( pool() );
+		if ( pl.length < MIN_PLAY ) {
+			st.play = null;
+			return;
+		}
+		const type = st.game.type;
+		const key = type === 'tr' ? 'translation' : 'term';
+		const P = {
+			type: type,
+			groupIds: chosenGroups().map( ( g ) => g.id ),
+			qs: pl.slice( 0, roundSize( pl.length ) ).map( ( w ) => ( { id: w.id, opts: options( w, key ) } ) ),
+			i: 0,
+			picked: null,
+			log: [],
+			before: {},
+			ended: false,
+			quit: false,
+			save: null,
+		};
+		P.qs.forEach( ( q ) => {
+			const w = word( q.id );
+			P.before[ q.id ] = w ? Number( w.progress ) || 0 : 0;
+		} );
+		st.play = P;
+	}
+
+	function playView() {
+		const P = st.play;
+		const q = P.qs[ P.i ];
+		const w = word( q.id ) || { term: '', translation: '', phonetic: '' };
+		const done = P.picked !== null;
+		const right = done && P.picked === q.id;
+		const pct = ( P.i + ( done ? 1 : 0 ) ) / P.qs.length * 100;
+		let fb;
+		if ( ! done ) {
+			fb = '<span class="tbtdic-hint">Click an answer or press <kbd class="tbtdic-kbd">1</kbd>–<kbd class="tbtdic-kbd">4</kbd></span>';
+		} else {
+			fb = ( right ? '<span class="tbtdic-fb__ok">✓ Correct</span>'
+				: '<span class="tbtdic-fb__no">✗ Not this time.</span><span class="tbtdic-muted">' + esc( w.term ) + ' = ' + esc( w.translation ) + '</span>' ) +
+				'<button class="tbtdic-btn" type="button" id="' + ID( 'next' ) + '" data-act="next">' + ( P.i + 1 < P.qs.length ? 'Next' : 'See your result' ) + '</button>';
+		}
+		return '<section class="tbtdic-stage tbtdic-play">' +
+			'<div class="tbtdic-ptop"><span class="tbtdic-count">' + esc( GAMES[ P.type ][ 0 ] ) + '</span>' +
+				'<span class="tbtdic-meter" aria-hidden="true"><i style="width:' + pct + '%"></i></span>' +
+				'<span class="tbtdic-count">' + ( P.i + 1 ) + ' / ' + P.qs.length + '</span>' +
+				'<button class="tbtdic-btn2" type="button" data-act="quit">End game</button></div>' +
+			'<span class="tbtdic-ask">' + ( P.type === 'tr' ? 'What does it mean?' : 'How do you say it in English?' ) + '</span>' +
+			'<div class="tbtdic-promptwrap">' +
+				'<div class="tbtdic-prompt' + ( P.type === 'w' ? ' tbtdic-prompt--tr' : '' ) + '">' + esc( P.type === 'tr' ? w.term : w.translation ) + '</div>' +
+				( P.type === 'tr' && ( w.phonetic || AUDIO ) ? '<div class="tbtdic-wline tbtdic-wline--center">' +
+					( w.phonetic ? '<span class="tbtdic-ipa">' + esc( w.phonetic ) + '</span>' : '' ) +
+					( AUDIO ? '<button class="tbtdic-say" type="button" data-say="' + q.id + '" aria-label="Listen to ' + esc( w.term ) + '">' + IC.say + '</button>' : '' ) + '</div>' : '' ) +
+			'</div>' +
+			'<div class="tbtdic-opts">' + q.opts.map( ( o, i ) => {
+				let cls = '';
+				if ( done && o.id === q.id ) {
+					cls = ' tbtdic-opt--right';
+				} else if ( done && o.id === P.picked ) {
+					cls = ' tbtdic-opt--wrong';
+				}
+				return '<button class="tbtdic-opt' + cls + '" type="button" data-pick="' + o.id + '"' + ( done ? ' disabled' : '' ) + '><span class="tbtdic-opt__k">' + ( i + 1 ) + '</span>' + esc( o.text ) + '</button>';
+			} ).join( '' ) + '</div>' +
+			'<div class="tbtdic-fb" aria-live="polite">' + fb + '</div>' +
+		'</section>';
+	}
+
+	function endView() {
+		const P = st.play;
+		const ok = P.log.filter( ( x ) => x.ok ).length;
+		const tot = P.log.length;
+		const newly = P.log.filter( ( x ) => {
+			const w = word( x.id );
+			return w && learned( w ) && P.before[ x.id ] < SET.learnt;
+		} ).length;
+		let line;
+		if ( ok === tot ) {
+			line = 'Perfect round!';
+		} else if ( ok >= tot * 0.7 ) {
+			line = 'Well done.';
+		} else {
+			line = 'Keep going: these words will come back until you know them.';
+		}
+		let saved = '';
+		if ( P.quit ) {
+			saved = '<p class="tbtdic-muted">Only finished rounds go to My results.</p>';
+		} else if ( P.save && P.save.recorded ) {
+			saved = '<div class="tbtdic-saved"><span class="tbtdic-saved__pill">✓ Saved to My results</span>' +
+				( P.save.points > 0 ? '<span class="tbtdic-saved__pts">+' + plural( P.save.points, 'point' ) + '</span>' : '' ) + '</div>';
+		} else if ( P.save && P.save.failed ) {
+			saved = '<p class="tbtdic-muted">This round could not be saved to My results.</p>';
+		}
+		return '<section class="tbtdic-stage tbtdic-play">' +
+			'<span class="tbtdic-ask">' + esc( GAMES[ P.type ][ 0 ] ) + '</span>' +
+			'<div class="tbtdic-big">' + ok + ' / ' + tot + '</div>' +
+			'<p class="tbtdic-muted">' + line + ( newly ? ' <b class="tbtdic-newly">' + plural( newly, 'word' ) + ' learned.</b>' : '' ) + '</p>' +
+			saved +
+			'<table class="tbtdic-rt"><thead><tr><th><span class="tbtdic-sr">Result</span></th><th>Word</th><th>Translation</th><th>Progress</th></tr></thead><tbody>' +
+				P.log.map( ( x ) => {
+					const w = word( x.id ) || x.w;
+					return '<tr><td>' + ( x.ok ? '<span class="tbtdic-rt__ok" aria-label="Right">✓</span>' : '<span class="tbtdic-rt__no" aria-label="Wrong">✗</span>' ) + '</td>' +
+						'<td class="tbtdic-rt__w">' + esc( w.term ) + '</td><td class="tbtdic-rt__tr">' + esc( w.translation ) + '</td><td>' + prog( wpct( w ) ) + '</td></tr>';
+				} ).join( '' ) +
+			'</tbody></table>' +
+			'<div class="tbtdic-setrow tbtdic-setrow--center"><button class="tbtdic-btn" type="button" data-act="again">Play again</button>' +
+				'<button class="tbtdic-btn2" type="button" data-act="games-home">Change settings</button>' +
+				'<button class="tbtdic-btn2" type="button" data-act="home">Back to my dictionary</button></div>' +
+		'</section>';
+	}
+
+	function gamesView() {
+		if ( ! st.play ) {
+			return gamesSetup();
+		}
+		return st.play.ended ? endView() : playView();
+	}
+
+	// Group counts and percentages follow the words, without a reload.
+	function refreshGroups() {
+		st.groups.forEach( ( g ) => {
+			const ws = inGroup( g.id );
+			g.word_count = ws.length;
+			g.learned = ws.filter( learned ).length;
+			g.percent = Math.round( gpct( g.id ) * 10 ) / 10;
+		} );
+	}
+
+	/** One answer: shown at once, saved in the background (no waiting before Next). */
+	function answer( id ) {
+		const P = st.play;
+		if ( ! P || P.ended || P.picked !== null ) {
+			return;
+		}
+		const q = P.qs[ P.i ];
+		const ok = id === q.id;
+		P.picked = id;
+		const w = word( q.id );
+		if ( w ) {
+			// The server's answer() rule, so the page does not wait for it.
+			const p = ( Number( w.progress ) || 0 ) + ( ok ? SET.right : -SET.wrong );
+			w.progress = Math.round( Math.max( 0, Math.min( SET.learnt, p ) ) * 100 ) / 100;
+			w.percent = wpct( w );
+		}
+		P.log.push( { id: q.id, ok: ok, w: w ? { term: w.term, translation: w.translation, progress: w.progress } : { term: '', translation: '', progress: 0 } } );
+		refreshGroups();
+		api( 'POST', 'words/' + q.id + '/answer', { correct: ok } ).then( ( data ) => {
+			if ( data.word && word( data.word.id ) ) {
+				putWord( data.word );
+				refreshGroups();
+				// Mid-question re-renders would only redraw the same screen.
+				if ( ! st.play || st.play.ended ) {
+					render();
+				}
+			}
+		} ).catch( () => {} );
+		render( 'next' );
+	}
+
+	/**
+	 * The end screen. A round whose last question is answered is finished
+	 * (even from End game) and goes to /games/finish; a round ended part-way
+	 * does not. Nothing answered: back to the setup.
+	 */
+	function endRound( quit ) {
+		const P = st.play;
+		if ( ! P || P.ended ) {
+			return;
+		}
+		const finished = P.log.length === P.qs.length;
+		if ( ! finished && ! P.log.length ) {
+			st.play = null;
+			render();
+			return;
+		}
+		P.ended = true;
+		P.quit = ! finished && !! quit;
+		render();
+		scrollTop();
+		if ( P.quit ) {
+			return;
+		}
+		const score = P.log.filter( ( x ) => x.ok ).length;
+		api( 'POST', 'games/finish', { type: P.type, group_ids: P.groupIds, score: score, total: P.qs.length } ).then( ( data ) => {
+			P.save = { recorded: !! data.recorded, points: Number( data.points ) || 0 };
+		} ).catch( () => {
+			P.save = { recorded: false, points: 0, failed: true };
+		} ).then( () => {
+			if ( st.play === P ) {
+				render();
+			}
+		} );
+	}
+
+	function scrollTop() {
+		const top = root.getBoundingClientRect().top + window.pageYOffset - 24;
+		if ( window.pageYOffset > top ) {
+			window.scrollTo( 0, Math.max( 0, top ) );
+		}
 	}
 
 	/* ---------- Dialogs ---------- */
@@ -443,7 +753,7 @@
 		} else if ( M.t === 'reset-group' ) {
 			const g = group( M.id );
 			h = '<h2 class="tbtdic-modal__title" id="' + ID( 'mt' ) + '">Reset progress?</h2>' +
-				'<p class="tbtdic-muted">Every word in “' + esc( g ? g.name : '' ) + '” goes back to 0%.</p>' + errLine() +
+				'<p class="tbtdic-muted">Every word in “' + esc( g ? g.name : '' ) + '” goes back to 0% and comes back into your games.</p>' + errLine() +
 				acts( 'Cancel', 'yes-reset-group', 'Reset', { id: M.id } );
 		} else if ( M.t === 'move' ) {
 			const w = word( M.id );
@@ -491,6 +801,8 @@
 		}
 		if ( st.q.trim() ) {
 			body = searchView();
+		} else if ( st.tab === 'games' ) {
+			body = gamesView();
 		} else {
 			body = st.view === 'group' ? groupView() : groupsList();
 		}
@@ -521,6 +833,14 @@
 		api( 'GET', 'state' ).then( ( data ) => {
 			st.groups = Array.isArray( data.groups ) ? data.groups : [];
 			st.words = Array.isArray( data.words ) ? data.words : [];
+			if ( data.settings ) {
+				[ 'learnt', 'right', 'wrong' ].forEach( ( k ) => {
+					const v = Number( data.settings[ k ] );
+					if ( isFinite( v ) && v >= 0 && ( k !== 'learnt' || v > 0 ) ) {
+						SET[ k ] = v;
+					}
+				} );
+			}
 			st.loaded = true;
 			render();
 			// A word added in the last 10 minutes and left pending (the page
@@ -664,10 +984,7 @@
 		st.quick = { w: '', tr: '', err: '', busy: false };
 		st.lastG = id;
 		render( 'nw' );
-		const top = root.getBoundingClientRect().top + window.pageYOffset - 24;
-		if ( window.pageYOffset > top ) {
-			window.scrollTo( 0, Math.max( 0, top ) );
-		}
+		scrollTop();
 	}
 
 	function openModal( m ) {
@@ -766,6 +1083,42 @@
 			openGroup( Number( o.dataset.open ) );
 			return;
 		}
+		const tb = t.closest( '[data-tab]' );
+		if ( tb ) {
+			Object.assign( st, { tab: tb.dataset.tab, view: 'list', g: null, menu: null, edit: null } );
+			if ( tb.dataset.tab !== 'games' ) {
+				st.play = null;
+			}
+			render();
+			return;
+		}
+		const pl = t.closest( '[data-play]' );
+		if ( pl ) {
+			Object.assign( st, { tab: 'games', view: 'list', q: '', menu: null, edit: null, play: null } );
+			st.game.groups = [ Number( pl.dataset.play ) ];
+			render();
+			scrollTop();
+			return;
+		}
+		const gt = t.closest( '[data-gtype]' );
+		if ( gt ) {
+			st.game.type = gt.dataset.gtype === 'w' ? 'w' : 'tr';
+			render();
+			return;
+		}
+		const gg = t.closest( '[data-gg]' );
+		if ( gg ) {
+			const gid = Number( gg.dataset.gg );
+			const a = st.game.groups;
+			st.game.groups = a.indexOf( gid ) >= 0 ? a.filter( ( x ) => x !== gid ) : a.concat( [ gid ] );
+			render();
+			return;
+		}
+		const pk = t.closest( '[data-pick]' );
+		if ( pk ) {
+			answer( Number( pk.dataset.pick ) );
+			return;
+		}
 		const sy = t.closest( '[data-say]' );
 		if ( sy ) {
 			speak( sy, word( Number( sy.dataset.say ) ) );
@@ -786,7 +1139,31 @@
 				load();
 				break;
 			case 'home':
-				Object.assign( st, { tab: 'groups', view: 'list', g: null, menu: null, edit: null, q: '' } );
+				Object.assign( st, { tab: 'groups', view: 'list', g: null, menu: null, edit: null, q: '', play: null } );
+				render();
+				break;
+			case 'start':
+			case 'again':
+				startGame();
+				render();
+				scrollTop();
+				break;
+			case 'next':
+				if ( st.play && st.play.picked !== null ) {
+					if ( st.play.i + 1 < st.play.qs.length ) {
+						st.play.i++;
+						st.play.picked = null;
+						render();
+					} else {
+						endRound( false );
+					}
+				}
+				break;
+			case 'quit':
+				endRound( true );
+				break;
+			case 'games-home':
+				st.play = null;
 				render();
 				break;
 			case 'clear':
@@ -887,6 +1264,7 @@
 				st.menu = null;
 				api( 'POST', 'words/' + id + '/reset' ).then( ( data ) => {
 					putWord( data.word );
+					refreshGroups();
 					render();
 				} ).catch( ( err ) => toast( esc( errorText( err ) ) ) );
 				render();
@@ -935,6 +1313,13 @@
 		}
 		if ( t.dataset.edit && st.edit ) {
 			st.edit[ t.dataset.edit ] = t.value;
+		}
+	} );
+
+	root.addEventListener( 'change', ( e ) => {
+		if ( e.target.id === ID( 'gn' ) ) {
+			st.game.n = e.target.value;
+			render();
 		}
 	} );
 
@@ -1017,6 +1402,33 @@
 		if ( q ) {
 			e.preventDefault();
 			q.focus();
+		}
+	} );
+
+	// In a round: 1–4 answer, Enter goes on (a focused button keeps its own Enter).
+	document.addEventListener( 'keydown', ( e ) => {
+		const P = st.play;
+		if ( ! P || P.ended || st.tab !== 'games' || st.q.trim() || st.modal || e.ctrlKey || e.metaKey || e.altKey || e.isComposing ) {
+			return;
+		}
+		const tag = ( e.target && e.target.tagName ) || '';
+		if ( /INPUT|SELECT|TEXTAREA/.test( tag ) || ( e.target && e.target.isContentEditable ) ) {
+			return;
+		}
+		if ( P.picked === null && /^[1-4]$/.test( e.key ) ) {
+			const o = P.qs[ P.i ].opts[ Number( e.key ) - 1 ];
+			if ( o ) {
+				e.preventDefault();
+				answer( o.id );
+			}
+			return;
+		}
+		if ( P.picked !== null && e.key === 'Enter' && tag !== 'BUTTON' && tag !== 'A' ) {
+			e.preventDefault();
+			const n = byId( 'next' );
+			if ( n ) {
+				n.click();
+			}
 		}
 	} );
 

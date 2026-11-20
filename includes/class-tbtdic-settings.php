@@ -1,7 +1,8 @@
 <?php
 /**
  * Settings page under the TBT Hub menu (own menu when Hub is absent):
- * OpenAI key, model, AI fill-ins per student per day, and (when AYS
+ * OpenAI key, model, AI fill-ins per student per day, the Learning points
+ * (0.2.0), and (when AYS
  * Personal Dictionary's tables exist) the copy of the old dictionary.
  * Administrators only. The key is stored server-side and never sent to a
  * page.
@@ -16,6 +17,21 @@ class TBTDIC_Settings {
 
 	/** admin-post action and nonce of the AYS copy. */
 	const COPY_ACTION = 'tbtdic_ays_copy';
+
+	/**
+	 * The Learning settings in force: learnt, right, wrong, each in its
+	 * range (TBTDIC_Words::learning()). Every runtime use of the learnt
+	 * points reads this; TBTDIC_LEARNT_DEFAULT is only the default.
+	 *
+	 * @return array{learnt:int,right:float,wrong:float}
+	 */
+	public static function learning() {
+		return TBTDIC_Words::learning(
+			get_option( 'tbtdic_learnt', TBTDIC_LEARNT_DEFAULT ),
+			get_option( 'tbtdic_right', TBTDIC_Words::RIGHT_DEFAULT ),
+			get_option( 'tbtdic_wrong', TBTDIC_Words::WRONG_DEFAULT )
+		);
+	}
 
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
@@ -81,6 +97,51 @@ class TBTDIC_Settings {
 			'sanitize_callback' => array( $this, 'sanitize_per_day' ),
 			'default'           => TBTDIC_AI::DEFAULT_PER_DAY,
 		) );
+		register_setting( self::GROUP, 'tbtdic_learnt', array(
+			'type'              => 'integer',
+			'sanitize_callback' => array( $this, 'sanitize_learnt' ),
+			'default'           => TBTDIC_LEARNT_DEFAULT,
+		) );
+		register_setting( self::GROUP, 'tbtdic_right', array(
+			'type'              => 'number',
+			'sanitize_callback' => array( $this, 'sanitize_right' ),
+			'default'           => TBTDIC_Words::RIGHT_DEFAULT,
+		) );
+		register_setting( self::GROUP, 'tbtdic_wrong', array(
+			'type'              => 'number',
+			'sanitize_callback' => array( $this, 'sanitize_wrong' ),
+			'default'           => TBTDIC_Words::WRONG_DEFAULT,
+		) );
+	}
+
+	/**
+	 * 1–100, whole points; not a number falls back to the default.
+	 *
+	 * @param mixed $value Submitted value.
+	 * @return int
+	 */
+	public function sanitize_learnt( $value ) {
+		return TBTDIC_Words::learning( $value, null, null )['learnt'];
+	}
+
+	/**
+	 * 0–100 in steps of 0.25; not a number falls back to the default.
+	 *
+	 * @param mixed $value Submitted value.
+	 * @return float
+	 */
+	public function sanitize_right( $value ) {
+		return TBTDIC_Words::quarter( $value, TBTDIC_Words::RIGHT_DEFAULT );
+	}
+
+	/**
+	 * 0–100 in steps of 0.25; not a number falls back to the default.
+	 *
+	 * @param mixed $value Submitted value.
+	 * @return float
+	 */
+	public function sanitize_wrong( $value ) {
+		return TBTDIC_Words::quarter( $value, TBTDIC_Words::WRONG_DEFAULT );
 	}
 
 	/**
@@ -121,6 +182,7 @@ class TBTDIC_Settings {
 		}
 		$source = TBTDIC_AI::key_source();
 		$model  = (string) get_option( 'tbtdic_model', '' );
+		$learn  = self::learning();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'TBT Dictionary Settings', 'tbt-dictionary' ); ?></h1>
@@ -179,6 +241,43 @@ class TBTDIC_Settings {
 								);
 								?>
 							</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 class="title"><?php esc_html_e( 'Learning', 'tbt-dictionary' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'How each answer in the games moves a word toward "learned". Learned words leave the games.', 'tbt-dictionary' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="tbtdic_learnt"><?php esc_html_e( 'Points to learn a word', 'tbt-dictionary' ); ?></label></th>
+						<td>
+							<input type="number" min="1" max="100" step="1" name="tbtdic_learnt" id="tbtdic_learnt" class="small-text"
+								value="<?php echo esc_attr( $learn['learnt'] ); ?>">
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %d: default */
+									esc_html__( 'Default %d. Progress is stored in points, so changing Points to learn a word changes every word\'s percentage at once.', 'tbt-dictionary' ),
+									(int) TBTDIC_LEARNT_DEFAULT
+								);
+								?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="tbtdic_right"><?php esc_html_e( 'Points for a right answer', 'tbt-dictionary' ); ?></label></th>
+						<td>
+							<input type="number" min="0" max="100" step="0.25" name="tbtdic_right" id="tbtdic_right" class="small-text"
+								value="<?php echo esc_attr( $learn['right'] ); ?>">
+							<p class="description"><?php echo esc_html( sprintf( /* translators: %s: default */ __( 'Default %s.', 'tbt-dictionary' ), TBTDIC_Words::RIGHT_DEFAULT ) ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="tbtdic_wrong"><?php esc_html_e( 'Points taken for a wrong answer', 'tbt-dictionary' ); ?></label></th>
+						<td>
+							<input type="number" min="0" max="100" step="0.25" name="tbtdic_wrong" id="tbtdic_wrong" class="small-text"
+								value="<?php echo esc_attr( $learn['wrong'] ); ?>">
+							<p class="description"><?php echo esc_html( sprintf( /* translators: %s: default */ __( 'Default %s.', 'tbt-dictionary' ), TBTDIC_Words::WRONG_DEFAULT ) ); ?></p>
 						</td>
 					</tr>
 				</table>

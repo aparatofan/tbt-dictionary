@@ -75,6 +75,58 @@ check( 'ays_progress: not a number → 0', TBTDIC_Words::ays_progress( 0, null )
 check( 'ays_progress: two decimals', TBTDIC_Words::ays_progress( 0, 33.333 ), 3.33 );
 check( 'ays_progress: 2.75 shows as 27.5% (one decimal, as the page)', round( TBTDIC_Words::percent( TBTDIC_Words::ays_progress( 0, 27.5 ) ), 1 ), 27.5 );
 
+/* The copy uses "Points to learn a word" (0.2.0): a word AYS marked learned
+   always comes in learned, and the percentage carries over. */
+check( 'ays_progress: learnt 20, completed → 20 (learned)', TBTDIC_Words::ays_progress( 1, 27.5, 20 ), 20.0 );
+check( 'ays_progress: learnt 20, completed is learned', TBTDIC_Words::is_learned( TBTDIC_Words::ays_progress( 1, 0, 20 ), 20 ), true );
+check( 'ays_progress: learnt 3, completed is learned', TBTDIC_Words::is_learned( TBTDIC_Words::ays_progress( '1', '40', 3 ), 3 ), true );
+check( 'ays_progress: learnt 20, 27.5% → 5.5', TBTDIC_Words::ays_progress( 0, 27.5, 20 ), 5.5 );
+check( 'ays_progress: learnt 20, 27.5% still shows 27.5%', round( TBTDIC_Words::percent( TBTDIC_Words::ays_progress( 0, 27.5, 20 ), 20 ), 1 ), 27.5 );
+check( 'ays_progress: learnt 7, 33.333% → 2.33', TBTDIC_Words::ays_progress( 0, 33.333, 7 ), 2.33 );
+check( 'ays_progress: learnt 20, 150% → 20', TBTDIC_Words::ays_progress( 0, 150, 20 ), 20.0 );
+check( 'ays_progress: learnt 0 falls back to the default', TBTDIC_Words::ays_progress( 1, 0, 0 ), 10.0 );
+
+/* ---------- learning settings ---------- */
+
+check( 'learning: defaults pass through', TBTDIC_Words::learning( 10, 1, 0.25 ), array( 'learnt' => 10, 'right' => 1.0, 'wrong' => 0.25 ) );
+check( 'learning: from option strings', TBTDIC_Words::learning( '12', '1.5', '0.75' ), array( 'learnt' => 12, 'right' => 1.5, 'wrong' => 0.75 ) );
+check( 'learning: not numeric → defaults', TBTDIC_Words::learning( '', null, 'x' ), array( 'learnt' => 10, 'right' => 1.0, 'wrong' => 0.25 ) );
+check( 'learning: learnt clamped to 1–100', array( TBTDIC_Words::learning( 0, 1, 0 )['learnt'], TBTDIC_Words::learning( 500, 1, 0 )['learnt'] ), array( 1, 100 ) );
+check( 'learning: right/wrong clamped to 0–100', array( TBTDIC_Words::learning( 10, -3, 0 )['right'], TBTDIC_Words::learning( 10, 1, 250 )['wrong'] ), array( 0.0, 100.0 ) );
+check( 'learning: quarter steps', array( TBTDIC_Words::learning( 10, 0.3, 0.1 )['right'], TBTDIC_Words::learning( 10, 0.3, 0.1 )['wrong'] ), array( 0.25, 0.0 ) );
+
+/* ---------- answer ---------- */
+
+check( 'answer: right +1', TBTDIC_Words::answer( 2.75, true, 1, 0.25, 10 ), 3.75 );
+check( 'answer: wrong −0.25', TBTDIC_Words::answer( 2.75, false, 1, 0.25, 10 ), 2.5 );
+check( 'answer: from a DB string', TBTDIC_Words::answer( '2.75', true, 1, 0.25, 10 ), 3.75 );
+check( 'answer: clamp at 0', TBTDIC_Words::answer( 0.1, false, 1, 0.25, 10 ), 0.0 );
+check( 'answer: wrong at 0 stays 0', TBTDIC_Words::answer( 0, false, 1, 0.25, 10 ), 0.0 );
+check( 'answer: clamp at learnt', TBTDIC_Words::answer( 9.5, true, 1, 0.25, 10 ), 10.0 );
+check( 'answer: right at learnt stays learnt', TBTDIC_Words::answer( 10, true, 1, 0.25, 10 ), 10.0 );
+check( 'answer: quarter steps add up', TBTDIC_Words::answer( TBTDIC_Words::answer( 1, true, 0.75, 0.25, 10 ), false, 0.75, 0.25, 10 ), 1.5 );
+check( 'answer: right reaches learned', TBTDIC_Words::is_learned( TBTDIC_Words::answer( 9, true, 1, 0.25, 10 ), 10 ), true );
+check( 'answer: progress over a lower learnt is clamped', TBTDIC_Words::answer( 12, false, 1, 0.25, 5 ), 5.0 );
+
+/* ---------- game_ref ---------- */
+
+check( 'game_ref: tr shape', TBTDIC_Words::game_ref( 'tr', array( 3, 12 ) ), 'tr:' . md5( '3-12' ) );
+check( 'game_ref: w shape', TBTDIC_Words::game_ref( 'w', array( 7 ) ), 'w:' . md5( '7' ) );
+check( 'game_ref: order does not matter (numeric sort)', TBTDIC_Words::game_ref( 'tr', array( 12, 3 ) ), TBTDIC_Words::game_ref( 'tr', array( 3, 12 ) ) );
+check( 'game_ref: duplicates do not matter', TBTDIC_Words::game_ref( 'tr', array( 3, 12, 3, '12' ) ), TBTDIC_Words::game_ref( 'tr', array( 3, 12 ) ) );
+check( 'game_ref: games differ', TBTDIC_Words::game_ref( 'tr', array( 3 ) ) === TBTDIC_Words::game_ref( 'w', array( 3 ) ), false );
+check( 'game_ref: unknown type → empty', TBTDIC_Words::game_ref( 'x', array( 3 ) ), '' );
+check( 'game_ref: fits Notes object_ref (64)', strlen( TBTDIC_Words::game_ref( 'tr', range( 1, 200 ) ) ) <= 64, true );
+
+/* ---------- game_title ---------- */
+
+check( 'game_title: translation', TBTDIC_Words::game_title( 'tr', array( 'Science Words', 'HR words' ) ), 'Find the translation: Science Words, HR words' );
+check( 'game_title: word', TBTDIC_Words::game_title( 'w', array( 'My English Words' ) ), 'Find the word: My English Words' );
+$long = TBTDIC_Words::game_title( 'tr', array( str_repeat( 'ż', 80 ), str_repeat( 'b', 80 ) ) );
+check( 'game_title: cut to 120 with …', array( mb_strlen( $long ), mb_substr( $long, -1 ) ), array( 120, '…' ) );
+check( 'game_title: exactly 120 is not cut', mb_strlen( TBTDIC_Words::game_title( 'w', array( str_repeat( 'a', 105 ) ) ) ), 120 );
+check( 'game_title: unknown type → empty', TBTDIC_Words::game_title( 'x', array( 'A' ) ), '' );
+
 /* ---------- parse_ai ---------- */
 
 check(
