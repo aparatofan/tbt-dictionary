@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TBT Dictionary — prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Roboto+Slab:ital,wght@0,400;0,600;0,700;1,400&family=Roboto+Mono:wght@500;700&display=swap">
+<style>
+/* Tokens copied from tbt-hub/assets/css/tbt-tokens.css 2.1 and the Results / Points prototypes. */
+:root{
+  --tbt-blue:#0856C9; --tbt-blue-dark:#063F94;
+  --tbt-canvas:#F6F8FC; --tbt-surface:#FFFFFF; --tbt-input:#F0F5FE; --tbt-selected-bg:#EDF4FF;
+  --tbt-border:#D8E3F0; --tbt-ink:#1F2937; --tbt-muted:#667085; --tbt-faint:#8299B8; --tbt-ipa:#4E6689;
+  --tbt-success:#16803C; --tbt-success-bg:#ECFDF3; --tbt-error:#C62828; --tbt-error-bg:#FFF1F1;
+  --tbt-shadow:0 6px 20px rgba(24,56,96,.07); --tbt-shadow-raised:0 10px 28px rgba(8,86,201,.12);
+  --tbt-focus-ring:0 0 0 3px rgba(8,86,201,.18); --tbt-ease:cubic-bezier(.22,.61,.36,1);
+  --ui:"Roboto",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --content:"Roboto Slab",Georgia,serif;
+  --identity:"Roboto Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;min-width:768px;background:var(--tbt-canvas);color:var(--tbt-ink);font:400 16px/1.5 var(--ui);padding:16px 16px 64px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.app{display:flex;flex-direction:column;gap:24px;min-width:0}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:none;box-shadow:var(--tbt-focus-ring)}
+h1,h2,h3,p{margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.muted{color:var(--tbt-muted)}
+
+.proto{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:14px;color:var(--tbt-muted);border:1px dashed var(--tbt-border);border-radius:12px;padding:8px 16px;background:var(--tbt-surface)}
+.proto b{color:var(--tbt-ink);font-weight:600}
+
+/* ---------- Admin Bar (Style Book v2 §7) ---------- */
+.abar{display:flex;align-items:center;gap:10px}
+.abar .title{min-width:234px;font:700 28px/1.2 var(--content);color:var(--tbt-blue);letter-spacing:-.01em}
+.abar .line{flex:1;height:1px;background:var(--tbt-border)}
+.search{position:relative;width:300px;flex:none}
+.search input{width:100%;height:44px;border:1px solid transparent;border-radius:12px;background:var(--tbt-input);padding:0 40px;color:var(--tbt-ink)}
+.search input:focus{background:var(--tbt-surface);border-color:var(--tbt-blue);outline:none;box-shadow:var(--tbt-focus-ring)}
+.search svg{position:absolute;left:14px;top:13px;color:var(--tbt-muted)}
+.search .x{position:absolute;right:6px;top:6px;width:32px;height:32px;border:0;background:none;color:var(--tbt-muted);font-size:18px;border-radius:8px}
+.dd{width:300px;flex:none;height:44px;border:1px solid transparent;border-radius:12px;background:var(--tbt-input);padding:0 36px 0 14px;color:var(--tbt-ink);appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23667085' stroke-width='1.6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.cta{width:250px;height:53px;flex:none;border:0;border-radius:999px;background:var(--tbt-blue);color:#fff;font:600 16px/1 var(--ui);text-transform:uppercase;letter-spacing:.08em}
+.cta:hover{background:var(--tbt-blue-dark)}
+.cta.ghost{background:var(--tbt-surface);color:var(--tbt-blue);box-shadow:inset 0 0 0 1.5px var(--tbt-blue)}
+.cta.ghost:hover{background:var(--tbt-selected-bg)}
+.cta[disabled]{background:var(--tbt-input);color:var(--tbt-faint);cursor:default}
+.summary{font-size:14px;color:var(--tbt-muted)}
+.summary .lnk{color:var(--tbt-blue);font-weight:600}
+
+/* ---------- buttons ---------- */
+.btn{height:40px;padding:0 20px;border-radius:999px;border:0;background:var(--tbt-blue);color:#fff;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px}
+.btn:hover{background:var(--tbt-blue-dark)}
+.btn[disabled]{background:var(--tbt-input);color:var(--tbt-faint);cursor:default}
+.btn.danger{background:var(--tbt-error)}
+.btn2{height:36px;padding:0 14px;border-radius:12px;border:1px solid var(--tbt-border);background:var(--tbt-surface);color:var(--tbt-blue-dark);font-weight:600;font-size:14px;white-space:nowrap}
+.btn2:hover{background:var(--tbt-selected-bg)}
+.btn2.no{color:var(--tbt-error)} .btn2.no:hover{background:var(--tbt-error-bg)}
+.icon{width:36px;height:36px;border:0;border-radius:10px;background:none;color:var(--tbt-muted);display:inline-grid;place-items:center;flex:none}
+.icon:hover{background:var(--tbt-selected-bg);color:var(--tbt-blue)}
+.lnk{border:0;background:none;padding:0;color:inherit;font:inherit;text-align:left;border-radius:4px}
+.lnk:hover{color:var(--tbt-blue);text-decoration:underline}
+.back{align-self:flex-start;height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--tbt-border);background:var(--tbt-surface);color:var(--tbt-blue-dark);font-weight:600}
+.back:hover{background:var(--tbt-selected-bg)}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--tbt-border)}
+.tabs button{border:0;background:none;padding:10px 18px 12px;color:var(--tbt-muted);font-weight:600;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button:hover{color:var(--tbt-blue)}
+.tabs button[aria-selected=true]{color:var(--tbt-blue);border-bottom-color:var(--tbt-blue)}
+
+/* Info only: flat on the canvas, no box, no shadow, so it never looks clickable. */
+.stats{display:flex;align-items:stretch}
+.stat{padding:2px 32px;border-left:1px solid var(--tbt-border)}
+.stat:first-child{padding-left:4px;border-left:0}
+.stat .v{font:700 26px/1.2 var(--content);font-variant-numeric:tabular-nums;color:var(--tbt-ink)}
+.stat .k{font-size:14px;color:var(--tbt-muted)}
+
+.stage{background:var(--tbt-surface);border:1px solid var(--tbt-border);border-radius:22px;box-shadow:var(--tbt-shadow);padding:32px 40px;display:flex;flex-direction:column;gap:20px}
+.stage h2{font:700 22px/1.25 var(--content)}
+.stage .sub{color:var(--tbt-muted);margin-top:-12px;font-size:15px}
+
+/* ---------- meters ---------- */
+.prog{display:flex;align-items:center;gap:10px;font:500 13px/1 var(--identity);color:var(--tbt-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter{display:inline-block;flex:1;min-width:72px;height:6px;border-radius:999px;background:var(--tbt-input);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--tbt-blue);border-radius:999px;transition:width .4s var(--tbt-ease)}
+.meter.full i{background:var(--tbt-success)}
+.prog .pv{min-width:52px;text-align:right}
+.pill{display:inline-block;font:600 13px/1 var(--ui);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--tbt-success-bg);color:var(--tbt-success)}
+.tag{display:inline-block;font:500 12px/1 var(--ui);padding:5px 9px;border-radius:999px;background:var(--tbt-input);color:var(--tbt-blue-dark);white-space:nowrap}
+
+/* ---------- group cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+/* Clickable: white card, shadow at rest, lifts on hover, arrow by the name. */
+.gcard{position:relative;background:var(--tbt-surface);border:1px solid var(--tbt-border);border-radius:16px;padding:20px 24px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--tbt-shadow);transition:box-shadow .2s var(--tbt-ease),border-color .2s,transform .2s var(--tbt-ease)}
+.gcard:hover{border-color:#B9CCE6;box-shadow:var(--tbt-shadow-raised);transform:translateY(-2px)}
+.gcard h3{display:flex;align-items:center;gap:8px}
+.gcard h3 .go{color:var(--tbt-faint);transition:transform .2s var(--tbt-ease),color .2s}
+.gcard .open:hover h3 .go{color:var(--tbt-blue);transform:translateX(3px)}
+.gcard .open{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;border-radius:8px}
+.gcard .open:focus-visible{box-shadow:var(--tbt-focus-ring)}
+.gcard h3{font:700 20px/1.25 var(--content);color:var(--tbt-ink)}
+.gcard .open:hover h3{color:var(--tbt-blue)}
+.gcard .meta{font-size:14px;color:var(--tbt-muted)}
+.gcard .foot{display:flex;align-items:center;gap:8px;padding-top:4px}
+.gcard .foot .prog{flex:1}
+
+/* ---------- popover menu ---------- */
+.menuwrap{position:relative}
+.menu{position:absolute;right:0;top:40px;z-index:20;min-width:200px;background:var(--tbt-surface);border:1px solid var(--tbt-border);border-radius:12px;box-shadow:var(--tbt-shadow-raised);padding:6px;display:flex;flex-direction:column}
+.menu button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;color:var(--tbt-ink);font-size:15px}
+.menu button:hover{background:var(--tbt-selected-bg);color:var(--tbt-blue-dark)}
+.menu button.no{color:var(--tbt-error)} .menu button.no:hover{background:var(--tbt-error-bg)}
+
+/* ---------- group view ---------- */
+.ghead{display:flex;align-items:flex-end;gap:24px}
+.ghead .t{flex:1;display:flex;flex-direction:column;gap:6px}
+.ghead h2{font:700 28px/1.25 var(--content);color:var(--tbt-blue);letter-spacing:-.01em}
+.ghead .prog{width:260px}
+.adder{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:13px;font-weight:600;color:var(--tbt-muted)}
+.inp{height:48px;border:1px solid transparent;border-radius:12px;background:var(--tbt-input);padding:0 14px;color:var(--tbt-ink);font:400 17px/1 var(--content);width:100%}
+.inp:focus{background:var(--tbt-surface);border-color:var(--tbt-blue);outline:none;box-shadow:var(--tbt-focus-ring)}
+.inp.sm{height:40px;font-size:15px}
+.hint{font-size:13px;color:var(--tbt-muted)}
+.hint kbd{font:500 12px/1 var(--identity);border:1px solid var(--tbt-border);border-bottom-width:2px;border-radius:6px;padding:2px 6px;background:var(--tbt-surface);color:var(--tbt-ink)}
+
+.words{display:flex;flex-direction:column}
+.wrow{display:grid;grid-template-columns:1fr 200px auto;gap:24px;align-items:center;padding:16px 4px;border-bottom:1px solid var(--tbt-border)}
+.wrow:last-child{border-bottom:0}
+.wrow.new{animation:flash 1.6s var(--tbt-ease)}
+@keyframes flash{0%{background:var(--tbt-selected-bg)}100%{background:transparent}}
+.wmain{display:flex;flex-direction:column;gap:4px;min-width:0}
+.wline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wterm{font:700 21px/1.25 var(--content);color:var(--tbt-blue)}
+.ipa{font:500 14px/1 var(--identity);color:var(--tbt-ipa)}
+.say{width:32px;height:32px;border:0;border-radius:50%;background:rgba(8,86,201,.08);color:var(--tbt-blue);display:inline-grid;place-items:center;transition:transform .15s,background .15s}
+.say:hover{background:rgba(8,86,201,.16);transform:scale(1.06)}
+.wtr{font:400 17px/1.4 var(--content);color:var(--tbt-ink)}
+.wex{font:italic 400 15px/1.5 var(--content);color:var(--tbt-muted)}
+.wtr .missing{font:500 14px var(--ui);color:var(--tbt-faint)}
+.shim{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--tbt-faint)}
+.shim i{width:120px;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--tbt-input) 0%,#DCE7F7 50%,var(--tbt-input) 100%);background-size:200% 100%;animation:sh 1.1s linear infinite}
+@keyframes sh{from{background-position:200% 0}to{background-position:-200% 0}}
+.ai-note{font-size:13px;color:var(--tbt-faint);font-style:normal}
+.ingrp{margin-left:4px}
+.wedit{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wedit .full{grid-column:1/-1}
+.wedit .acts{grid-column:1/-1;display:flex;gap:8px}
+.empty{color:var(--tbt-muted);padding:16px 0}
+
+/* ---------- games ---------- */
+.gpick{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gopt{border:1px solid var(--tbt-border);background:var(--tbt-surface);border-radius:16px;padding:20px 24px;text-align:left;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,background .15s}
+.gopt:hover{border-color:var(--tbt-blue)}
+.gopt[aria-pressed=true]{border-color:var(--tbt-blue);background:var(--tbt-selected-bg)}
+.gopt b{font:700 19px/1.25 var(--content);color:var(--tbt-blue)}
+.gopt span{font-size:14px;color:var(--tbt-muted)}
+.gopt.soon{border-style:dashed;cursor:default;background:none}
+.gopt.soon b{color:var(--tbt-faint)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--tbt-border);background:var(--tbt-surface);border-radius:999px;padding:8px 14px;color:var(--tbt-ink);font-weight:500;font-size:15px}
+.chip small{color:var(--tbt-muted);font-weight:400;margin-left:4px}
+.chip:hover{border-color:var(--tbt-blue)}
+.chip[aria-pressed=true]{background:var(--tbt-selected-bg);border-color:var(--tbt-blue);color:var(--tbt-blue-dark)}
+.chip[aria-pressed=true]::before{content:"✓ "}
+.setrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.setrow .lab{font-weight:600;min-width:140px}
+.warn{font-size:14px;color:var(--tbt-error)}
+
+.play{align-items:center;text-align:center;padding:40px 48px}
+.ptop{align-self:stretch;display:flex;align-items:center;gap:16px}
+.ptop .meter{height:8px}
+.count{font:700 13px/1 var(--identity);letter-spacing:.08em;color:var(--tbt-muted);white-space:nowrap}
+.ask{font:700 13px/1 var(--identity);letter-spacing:.18em;text-transform:uppercase;color:var(--tbt-faint)}
+.prompt{font:700 40px/1.2 var(--content);color:var(--tbt-blue);text-wrap:balance}
+.prompt.pl{color:var(--tbt-ink)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:760px}
+.opt{position:relative;min-height:64px;border:1px solid var(--tbt-border);background:var(--tbt-surface);border-radius:14px;padding:14px 18px 14px 52px;text-align:left;font:400 18px/1.35 var(--content);color:var(--tbt-ink);transition:border-color .15s,background .15s}
+.opt:hover:not([disabled]){border-color:var(--tbt-blue);background:var(--tbt-selected-bg)}
+.opt .k{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:6px;border:1px solid var(--tbt-border);display:grid;place-items:center;font:500 12px/1 var(--identity);color:var(--tbt-muted)}
+.opt[disabled]{cursor:default}
+.opt.right{border-color:var(--tbt-success);background:var(--tbt-success-bg);color:var(--tbt-success)}
+.opt.right .k{border-color:var(--tbt-success);color:var(--tbt-success)}
+.opt.wrong{border-color:var(--tbt-error);background:var(--tbt-error-bg);color:var(--tbt-error);animation:jit .32s}
+.opt.wrong .k{border-color:var(--tbt-error);color:var(--tbt-error)}
+@keyframes jit{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.fb{min-height:48px;display:flex;align-items:center;gap:16px}
+.fb .okt{color:var(--tbt-success);font-weight:600}
+.fb .not{color:var(--tbt-error);font-weight:600}
+.big{font:700 56px/1 var(--content);color:var(--tbt-blue);font-variant-numeric:tabular-nums}
+.saved{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--tbt-success);background:var(--tbt-success-bg);border-radius:999px;padding:8px 14px;font-weight:600}
+table.rt{width:100%;border-collapse:collapse;text-align:left}
+.rt th{font-size:13px;font-weight:600;color:var(--tbt-muted);text-transform:uppercase;letter-spacing:.06em;padding:0 12px 10px;border-bottom:1px solid var(--tbt-border)}
+.rt td{padding:12px;border-bottom:1px solid var(--tbt-border);vertical-align:middle}
+.rt tr:last-child td{border-bottom:0}
+.rt .w{font:700 17px var(--content);color:var(--tbt-blue)}
+.rt .tr{font-family:var(--content)}
+.rt .prog{min-width:180px}
+.ok{color:var(--tbt-success);font-weight:700} .bad{color:var(--tbt-error);font-weight:700}
+
+/* ---------- import ---------- */
+.drop{border:2px dashed var(--tbt-border);border-radius:16px;padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--tbt-canvas)}
+.drop.over{border-color:var(--tbt-blue);background:var(--tbt-selected-bg)}
+.drop b{font:700 18px var(--content)}
+.dest{display:flex;flex-direction:column;gap:10px}
+.dest label{display:flex;align-items:center;gap:10px}
+.dest .inp,.dest .dd{width:320px}
+.dup td{color:var(--tbt-faint)}
+
+/* ---------- modal + toast ---------- */
+.scrim{position:fixed;inset:0;background:rgba(15,30,60,.35);display:grid;place-items:center;z-index:50}
+.modal{width:min(480px,92vw);background:var(--tbt-surface);border-radius:22px;box-shadow:0 24px 60px rgba(8,30,70,.25);padding:28px 32px;display:flex;flex-direction:column;gap:16px}
+.modal h2{font:700 22px/1.25 var(--content)}
+.added{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--tbt-success);background:var(--tbt-success-bg);border-radius:12px;padding:10px 14px}
+.added b{font-family:var(--content)}
+.modal .acts{display:flex;justify-content:flex-end;gap:8px}
+.toast{position:fixed;right:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:10px;background:var(--tbt-blue);color:#fff;border-radius:999px;padding:12px 20px 12px 14px;font-weight:600;box-shadow:var(--tbt-shadow-raised);transform:translateY(20px);opacity:0;transition:.3s var(--tbt-ease);pointer-events:none}
+.toast.on{transform:none;opacity:1}
+.toast .star{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center}
+.toast small{font-weight:400;opacity:.85}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="proto">
+    <b>Prototype</b> · Student view (Kat) · sample data, nothing is saved.
+    <span>Try: <b>Add a word</b> → type a group name or pick one, then <b>resilient</b> or <b>outcome</b> with an empty translation (AI fills it in) · open a group's ⋮ · Games → play a round · Import → sample file. No page header: the Divi page supplies its own.</span>
+    <span>Points so far: <b id="ptsLbl">0</b></span>
+  </div>
+  <main id="app" class="app"></main>
+</div>
+<div id="modal"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span class="star">★</span><span id="toastTxt"></span></div>
+
+<script>
+/* ============ settings (wp-admin, same as AYS) ============ */
+const SET = {learnt:10, right:2, wrong:.25};
+
+/* ============ sample data ============ */
+let gid = 10, wid = 100;
+const GROUPS = [
+  {id:1,name:"My English Words",at:1},
+  {id:2,name:"My Idioms",at:2},
+  {id:3,name:"HR words",at:3},
+  {id:4,name:"Science Words",at:4},
+];
+const W = (g,w,tr,ph,ex,p=0)=>({id:++wid,g,w,tr,ph,ex,p,at:wid});
+const WORDS = [
+  W(1,"reliable","niezawodny","/rɪˈlaɪ.ə.bəl/","Our new supplier has been very reliable.",10),
+  W(1,"awkward","niezręczny","/ˈɔː.kwəd/","There was an awkward silence after his joke.",10),
+  W(1,"to postpone","przełożyć (na później)","/pəʊstˈpəʊn/","We had to postpone the meeting until Friday.",6),
+  W(1,"straightforward","prosty, nieskomplikowany","/ˌstreɪtˈfɔː.wəd/","The instructions are fairly straightforward.",4),
+  W(1,"eventually","w końcu, ostatecznie","/ɪˈven.tʃu.ə.li/","Eventually, we found the right solution.",2),
+  W(1,"to rely on","polegać na","/rɪˈlaɪ ɒn/","You can always rely on Pete to help.",2),
+  W(1,"deadline","termin (ostateczny)","/ˈded.laɪn/","The deadline for the report is Monday.",0),
+  W(1,"overwhelmed","przytłoczony","/ˌəʊ.vəˈwelmd/","She felt overwhelmed by all the emails.",0),
+  W(1,"thorough","dokładny, gruntowny","/ˈθʌr.ə/","The doctor gave him a thorough examination.",0),
+  W(1,"to come up with","wymyślić","/kʌm ˈʌp wɪð/","Sven came up with a brilliant idea.",0),
+  W(1,"convenient","dogodny, wygodny","/kənˈviː.ni.ənt/","Is Tuesday a convenient time for you?",0),
+  W(1,"to tackle","zmierzyć się z (problemem)","/ˈtæk.əl/","We need to tackle this problem now.",0),
+  W(1,"issue","kwestia, problem","/ˈɪʃ.uː/","Money is not the main issue here.",0),
+  W(1,"regardless","bez względu na to","/rɪˈɡɑːd.ləs/","She went out regardless of the rain.",0),
+  W(2,"a piece of cake","bułka z masłem","/ə ˌpiːs əv ˈkeɪk/","The exam was a piece of cake.",4),
+  W(2,"to break the ice","przełamać lody","/ˌbreɪk ði ˈaɪs/","Kat told a story to break the ice.",0),
+  W(2,"to hit the sack","iść spać","/ˌhɪt ðə ˈsæk/","I'm tired, I'm going to hit the sack.",0),
+  W(2,"under the weather","nie w formie","/ˌʌn.də ðə ˈweð.ə/","Alita is feeling a bit under the weather.",0),
+  W(2,"to cost an arm and a leg","kosztować fortunę","/ˌkɒst ən ˌɑːm ənd ə ˈleɡ/","That car cost an arm and a leg.",0),
+  W(3,"onboarding","wdrażanie nowego pracownika","/ˈɒnˌbɔː.dɪŋ/","Our onboarding process takes two weeks.",0),
+  W(3,"appraisal","ocena okresowa","/əˈpreɪ.zəl/","My annual appraisal is next Monday.",0),
+  W(4,"prolific","bardzo twórczy / niezwykle produktywny","/prəˈlɪf.ɪk/","She was a prolific writer who published over fifty books.",0),
+  W(4,"disruption (n.)","zakłócenie","/dɪsˈrʌp.ʃən/","The strike caused major disruption to rail services.",0),
+  W(4,"mitigate (v.)","łagodzić","/ˈmɪt.ɪ.ɡeɪt/","Planting trees can help mitigate the effects of climate change.",0),
+  W(4,"susceptible (adj.)","podatny","/səˈsep.tə.bəl/","Older people are more susceptible to infections.",0),
+  W(4,"hypothesis","hipoteza","/haɪˈpɒθ.ə.sɪs/","The results supported the original hypothesis.",0),
+  W(4,"evidence","dowody","/ˈev.ɪ.dəns/","There is no evidence that the drug works.",0),
+];
+/* What the AI fill-in returns on the live site (mocked here for a few words). */
+const AI = {
+  "resilient":["odporny, prężny","/rɪˈzɪl.i.ənt/","Children are often more resilient than adults think."],
+  "outcome":["wynik, rezultat","/ˈaʊt.kʌm/","We are still waiting for the outcome of the meeting."],
+  "ambiguous":["dwuznaczny, niejednoznaczny","/æmˈbɪɡ.ju.əs/","The wording of the contract is ambiguous."],
+  "struggle":["zmagać się","/ˈstrʌɡ.əl/","Many learners struggle with phrasal verbs."],
+  "commute":["dojazd do pracy","/kəˈmjuːt/","My commute takes about forty minutes."],
+  "reluctant":["niechętny","/rɪˈlʌk.tənt/","He was reluctant to admit his mistake."],
+  "agenda":["porządek obrad","/əˈdʒen.də/","The first item on the agenda is the budget."],
+};
+const SAMPLE_FILE = {name:"Business meetings", rows:[
+  ["agenda","porządek obrad"],["minutes","protokół"],["to adjourn","odroczyć"],["to chair a meeting","prowadzić zebranie"],
+  ["consensus","zgoda, konsensus"],["any other business","sprawy różne"],["deadline","termin (ostateczny)"],
+  ["quorum","kworum"],["follow-up","działania następcze"],["action points","zadania do wykonania"]]};
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fold = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/ł/g,"l");
+const wpct = w => Math.min(100, w.p/SET.learnt*100);
+const learned = w => w.p >= SET.learnt;
+const inG = g => WORDS.filter(w=>w.g===g);
+const gpct = g => { const ws=inG(g); return ws.length ? ws.reduce((t,w)=>t+wpct(w),0)/ws.length : 0; };
+const fmtPct = p => (Math.round(p*10)/10).toString().replace(/\.0$/,"")+"%";
+const grp = id => GROUPS.find(g=>g.id===id);
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const aiKey = s => fold(s).replace(/\(.*?\)/g,"").replace(/^to\s+/,"").trim();
+const plural = (n,one,many=one+"s") => `${n} ${n===1?one:many}`;
+function prog(p){ return `<span class="prog"><span class="meter${p>=100?" full":""}" aria-hidden="true"><i style="width:${p}%"></i></span><span class="pv">${p>=100?"Learned":fmtPct(p)}</span></span>`; }
+const IC = {
+  dots:`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`,
+  say:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>`,
+  search:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>`,
+};
+
+/* ============ state ============ */
+const st = {tab:"groups", view:"list", g:null, q:"", lastG:null, menu:null, edit:null, flash:null,
+  game:{type:"tr", groups:[], n:"10"}, play:null, imp:null, points:0, modal:null};
+
+/* ============ toast + points ============ */
+let tt;
+function toast(txt){ $("#toastTxt").innerHTML = txt; $("#toast").classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>$("#toast").classList.remove("on"),2200); }
+function earn(n, why){ st.points += n; $("#ptsLbl").textContent = st.points; toast(`+${plural(n,"point")} <small>· ${why}</small>`); }
+
+/* ============ speech stand-in for ElevenLabs ============ */
+function say(text){ try{ const u=new SpeechSynthesisUtterance(text.replace(/\(.*?\)/g,"")); u.lang="en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+
+/* ============ views ============ */
+function abar(){
+  return `<div class="abar"><h1 class="title">My dictionary</h1>
+    <div class="search">${IC.search}<label class="sr" for="q">Search your words</label>
+      <input id="q" type="text" placeholder="Search your words…" value="${esc(st.q)}" autocomplete="off">
+      ${st.q?`<button class="x" type="button" data-act="clear" aria-label="Clear search">×</button>`:""}</div>
+    <span class="line" aria-hidden="true"></span>
+    <button class="cta ghost" data-act="new-group">Add a group</button>
+    <button class="cta" data-act="new-word">Add a word</button></div>`;
+}
+function tabs(){
+  const T=[["groups","Groups"],["games","Games"],["import","Import"]];
+  return `<div class="tabs" role="tablist">${T.map(([k,v])=>`<button role="tab" data-tab="${k}" aria-selected="${st.tab===k&&!st.q}">${v}</button>`).join("")}</div>`;
+}
+function stats(){
+  const total=WORDS.length, l=WORDS.filter(learned).length;
+  return `<div class="stats">
+    <div class="stat"><div class="v">${total}</div><div class="k">words in your dictionary</div></div>
+    <div class="stat"><div class="v">${l}</div><div class="k">words learned</div></div>
+    <div class="stat"><div class="v">${GROUPS.length}</div><div class="k">groups</div></div>
+  </div>`;
+}
+function groupsList(){
+  const gs=[...GROUPS].sort((a,b)=>a.at-b.at);
+  if(!gs.length) return `${stats()}<section class="stage"><h2>Start your dictionary</h2><p class="muted">Make a group for a topic (e.g. “Work” or “Idioms”) and add the new words you meet in lessons.</p><div><button class="btn" data-act="new-group">Add a group</button></div></section>`;
+  return `${stats()}<div class="cards">${gs.map(g=>{const ws=inG(g.id), l=ws.filter(learned).length, p=gpct(g.id);
+    return `<article class="gcard">
+      <button class="open" data-open="${g.id}"><h3>${esc(g.name)}<svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></h3><span class="meta">${plural(ws.length,"word")} · ${l} learned</span></button>
+      <div class="foot">${prog(p)}
+        <button class="btn2" data-play="${g.id}" ${ws.filter(w=>!learned(w)&&w.tr).length<5?"disabled title='Needs at least 5 words you haven’t learned yet'":""}>Play</button>
+        <div class="menuwrap"><button class="icon" data-menu="g${g.id}" aria-label="More for ${esc(g.name)}" aria-expanded="${st.menu==="g"+g.id}">${IC.dots}</button>
+          ${st.menu==="g"+g.id?`<div class="menu" role="menu">
+            <button data-act="rename" data-id="${g.id}">Rename</button>
+            <button data-act="reset-group" data-id="${g.id}">Reset progress</button>
+            <button class="no" data-act="del-group" data-id="${g.id}">Delete group</button></div>`:""}</div>
+      </div></article>`;}).join("")}</div>`;
+}
+function wordRow(w, showGroup){
+  if(st.edit===w.id) return `<div class="wrow"><div class="wedit">
+      <div class="fld"><label for="e_w">Word</label><input class="inp sm" id="e_w" value="${esc(w.w)}"></div>
+      <div class="fld"><label for="e_tr">Translation</label><input class="inp sm" id="e_tr" value="${esc(w.tr)}"></div>
+      <div class="fld"><label for="e_ph">Phonetic</label><input class="inp sm" id="e_ph" value="${esc(w.ph)}" style="font-family:var(--identity)"></div>
+      <div class="fld"><label for="e_ex">Example</label><input class="inp sm" id="e_ex" value="${esc(w.ex)}"></div>
+      <div class="acts"><button class="btn" data-act="save-edit" data-id="${w.id}">Save</button><button class="btn2" data-act="cancel-edit">Cancel</button></div>
+    </div><span></span><span></span></div>`;
+  const p=wpct(w);
+  return `<div class="wrow${st.flash===w.id?" new":""}" id="w${w.id}">
+    <div class="wmain">
+      <div class="wline"><span class="wterm">${esc(w.w)}</span>
+        ${w.ph?`<span class="ipa">${esc(w.ph)}</span>`:""}
+        ${!w.pending?`<button class="say" data-say="${w.id}" aria-label="Listen to ${esc(w.w)}">${IC.say}</button>`:""}
+        ${showGroup?`<span class="tag ingrp">${esc(grp(w.g).name)}</span>`:""}</div>
+      <div class="wtr">${w.tr?esc(w.tr):w.pending?"":`<span class="missing">No translation yet · <button class="lnk" data-act="edit" data-id="${w.id}" style="color:var(--tbt-blue)">add one</button></span>`}</div>
+      ${w.pending?`<span class="shim"><i></i>Adding ${w.tr?"":"a translation, "}phonetics, an example and audio…</span>`
+        : w.ex?`<div class="wex">“${esc(w.ex)}”</div>`
+        : w.noai?`<span class="ai-note">Prototype: on the live site AI adds the phonetics, an example and audio here.</span>`:""}
+    </div>
+    ${prog(p)}
+    <div class="menuwrap"><button class="icon" data-menu="w${w.id}" aria-label="More for ${esc(w.w)}" aria-expanded="${st.menu==="w"+w.id}">${IC.dots}</button>
+      ${st.menu==="w"+w.id?`<div class="menu" role="menu">
+        <button data-act="edit" data-id="${w.id}">Edit</button>
+        <button data-act="move" data-id="${w.id}">Move to another group</button>
+        <button data-act="reset-word" data-id="${w.id}">Reset progress</button>
+        <button class="no" data-act="del-word" data-id="${w.id}">Delete</button></div>`:""}</div>
+  </div>`;
+}
+function groupView(){
+  const g=grp(st.g), ws=inG(g.id).sort((a,b)=>b.at-a.at), l=ws.filter(learned).length;
+  return `<button class="back" data-act="home">← All groups</button>
+  <div class="ghead"><div class="t"><h2>${esc(g.name)}</h2><span class="summary">${plural(ws.length,"word")} · ${l} learned</span></div>
+    ${prog(gpct(g.id))}
+    <button class="btn2" data-play="${g.id}" ${ws.filter(w=>!learned(w)&&w.tr).length<5?"disabled":""}>Play this group</button>
+    <div class="menuwrap"><button class="icon" data-menu="h${g.id}" aria-label="More for this group">${IC.dots}</button>
+      ${st.menu==="h"+g.id?`<div class="menu" role="menu"><button data-act="rename" data-id="${g.id}">Rename</button><button data-act="reset-group" data-id="${g.id}">Reset progress</button><button class="no" data-act="del-group" data-id="${g.id}">Delete group</button></div>`:""}</div>
+  </div>
+  <section class="stage">
+    <div class="adder">
+      <div class="fld"><label for="nw">English word or phrase</label><input class="inp" id="nw" autocomplete="off" placeholder="e.g. resilient"></div>
+      <div class="fld"><label for="ntr">Translation <span style="font-weight:400">(optional, AI fills it in)</span></label><input class="inp" id="ntr" autocomplete="off" placeholder="leave empty or type your own"></div>
+      <button class="btn" style="height:48px" data-act="add-word">Add word</button>
+    </div>
+    <p class="hint"><kbd>Enter</kbd> moves to the translation, <kbd>Enter</kbd> again saves. Every new word: <b>+1 point</b>.</p>
+    <div class="words">${ws.length?ws.map(w=>wordRow(w,false)).join(""):`<p class="empty">No words yet. Add the first one above.</p>`}</div>
+  </section>`;
+}
+function searchView(){
+  const q=fold(st.q.trim());
+  const ws=WORDS.filter(w=>fold(w.w).includes(q)||fold(w.tr).includes(q)||fold(w.ex).includes(q)).sort((a,b)=>a.w.localeCompare(b.w));
+  return `<p class="summary">${plural(ws.length,"word")} match “${esc(st.q.trim())}” · <button class="lnk" data-act="clear">Clear search</button></p>
+  <section class="stage"><div class="words">${ws.length?ws.map(w=>wordRow(w,true)).join(""):`<p class="empty">No words match your search.</p>`}</div></section>`;
+}
+
+/* ---------- games ---------- */
+const GAMES = {tr:["Find the translation","See the English word, pick the translation."], w:["Find the word","See the translation, pick the English word."]};
+function pool(){ return WORDS.filter(w=>st.game.groups.includes(w.g) && !learned(w) && w.tr); }
+function gamesSetup(){
+  const pl=pool(), n = st.game.n==="all"?pl.length:Math.min(+st.game.n, pl.length);
+  return `<section class="stage">
+    <h2>1. Choose a game</h2>
+    <div class="gpick">
+      ${Object.entries(GAMES).map(([k,[t,d]])=>`<button class="gopt" data-gtype="${k}" aria-pressed="${st.game.type===k}"><b>${t}</b><span>${d}</span></button>`).join("")}
+      <div class="gopt soon"><b>More games coming</b><span>Play your words in Swipe, Matching Game and more.</span></div>
+    </div>
+    <h2>2. Choose your words</h2>
+    <div class="setrow"><span class="lab">Groups</span><div class="chips">
+      ${GROUPS.map(g=>{const c=inG(g.id).filter(w=>!learned(w)&&w.tr).length;return `<button class="chip" data-gg="${g.id}" aria-pressed="${st.game.groups.includes(g.id)}">${esc(g.name)}<small>${c} to learn</small></button>`;}).join("")}
+    </div></div>
+    <div class="setrow"><label class="lab" for="gn">Number of words</label>
+      <select id="gn" class="dd" style="width:200px">${["5","10","15","20","all"].map(v=>`<option value="${v}" ${st.game.n===v?"selected":""}>${v==="all"?"All":v}</option>`).join("")}</select>
+      <span class="summary">Learned words are left out.</span></div>
+    <div class="setrow" style="margin-top:8px">
+      <button class="cta" data-act="start" ${pl.length<5?"disabled":""}>Start</button>
+      ${!st.game.groups.length?`<span class="summary">Pick at least one group.</span>`:pl.length<5?`<span class="warn">You need at least 5 words you haven’t learned yet. These groups have ${pl.length}.</span>`:`<span class="summary">${plural(n,"word")} from ${plural(st.game.groups.length,"group")}.</span>`}
+    </div>
+  </section>`;
+}
+function startGame(){
+  const pl=shuffle(pool()), n = st.game.n==="all"?pl.length:Math.min(+st.game.n,pl.length);
+  const qs=pl.slice(0,n).map(w=>{
+    const key = st.game.type==="tr"?"tr":"w";
+    const others = shuffle(WORDS.filter(o=>o.id!==w.id && o.tr && fold(o[key])!==fold(w[key]))).slice(0,3);
+    return {w, opts: shuffle([w,...others])};
+  });
+  st.play={type:st.game.type, qs, i:0, picked:null, log:[], before:new Map(qs.map(q=>[q.w.id,q.w.p]))};
+}
+function playView(){
+  const P=st.play, q=P.qs[P.i], key=P.type==="tr"?"tr":"w", done=P.picked!==null;
+  const right = done && P.picked===q.w.id;
+  return `<section class="stage play">
+    <div class="ptop"><span class="count">${GAMES[P.type][0].toUpperCase()}</span><span class="meter" aria-hidden="true"><i style="width:${(P.i+(done?1:0))/P.qs.length*100}%"></i></span><span class="count">${P.i+1} / ${P.qs.length}</span>
+      <button class="btn2" data-act="quit">End game</button></div>
+    <span class="ask">${P.type==="tr"?"What does it mean?":"How do you say it in English?"}</span>
+    <div class="wline" style="justify-content:center;flex-direction:column;gap:10px">
+      <div class="prompt${P.type==="w"?" pl":""}">${esc(P.type==="tr"?q.w.w:q.w.tr)}</div>
+      ${P.type==="tr"?`<div class="wline" style="justify-content:center">${q.w.ph?`<span class="ipa">${esc(q.w.ph)}</span>`:""}<button class="say" data-say="${q.w.id}" aria-label="Listen">${IC.say}</button></div>`:""}
+    </div>
+    <div class="opts">${q.opts.map((o,i)=>{
+      let cls=""; if(done){ if(o.id===q.w.id) cls="right"; else if(o.id===P.picked) cls="wrong"; }
+      return `<button class="opt ${cls}" data-pick="${o.id}" ${done?"disabled":""}><span class="k">${i+1}</span>${esc(o[key])}</button>`;}).join("")}</div>
+    <div class="fb">${done?`${right?`<span class="okt">✓ Correct</span>`:`<span class="not">✗ Not this time.</span><span class="muted">${esc(q.w.w)} = ${esc(q.w.tr)}</span>`}
+      <button class="btn" id="next" data-act="next">${P.i+1<P.qs.length?"Next":"See your result"}</button>`
+      :`<span class="hint">Click an answer or press <kbd>1</kbd>–<kbd>4</kbd></span>`}</div>
+  </section>`;
+}
+function endView(){
+  const P=st.play, ok=P.log.filter(x=>x.ok).length, tot=P.log.length;
+  const newly=P.log.filter(x=>learned(x.w) && P.before.get(x.w.id)<SET.learnt).length;
+  return `<section class="stage play">
+    <span class="ask">${GAMES[P.type][0]}</span>
+    <div class="big">${ok} / ${tot}</div>
+    <p class="muted">${ok===tot?"Perfect round!":ok>=tot*.7?"Well done.":"Keep going: these words will come back until you know them."}${newly?` <b style="color:var(--tbt-success)">${plural(newly,"word")} learned.</b>`:""}</p>
+    <span class="saved">✓ Saved to My results</span>
+    <table class="rt" style="max-width:820px"><thead><tr><th></th><th>Word</th><th>Translation</th><th>Progress</th></tr></thead><tbody>
+      ${P.log.map(x=>`<tr><td>${x.ok?`<span class="ok">✓</span>`:`<span class="bad">✗</span>`}</td><td class="w">${esc(x.w.w)}</td><td class="tr">${esc(x.w.tr)}</td><td>${prog(wpct(x.w))}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="setrow" style="justify-content:center"><button class="btn" data-act="again">Play again</button><button class="btn2" data-act="games-home">Change settings</button><button class="btn2" data-act="home">Back to my dictionary</button></div>
+  </section>`;
+}
+
+/* ---------- import ---------- */
+function importView(){
+  const I=st.imp;
+  if(!I) return `<section class="stage"><h2>Import words from a file</h2>
+    <p class="sub">Excel (.xlsx) or CSV. Column A: the English word. Column B: the translation. A header row is fine.</p>
+    <label class="drop" id="drop"><b>Drop your file here</b><span class="muted">or</span>
+      <span class="btn" style="display:inline-flex;align-items:center">Choose file</span>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" class="sr"></label>
+    <p class="hint">No file to hand? <button class="lnk" data-act="sample" style="color:var(--tbt-blue);font-weight:600">Try a sample file</button></p></section>`;
+  const have=new Set(WORDS.map(w=>fold(w.w))), fresh=I.rows.filter(r=>!have.has(fold(r[0])));
+  return `<section class="stage"><h2>${esc(I.name)}</h2>
+    <p class="sub">${plural(I.rows.length,"row")} found · ${plural(fresh.length,"new word")}${I.rows.length-fresh.length?` · ${I.rows.length-fresh.length} already in your dictionary (skipped)`:""}</p>
+    <table class="rt"><thead><tr><th>Word</th><th>Translation</th><th></th></tr></thead><tbody>
+      ${I.rows.map(r=>{const d=have.has(fold(r[0]));return `<tr class="${d?"dup":""}"><td class="w"${d?' style="color:var(--tbt-faint)"':""}>${esc(r[0])}</td><td class="tr">${esc(r[1])}</td><td class="summary">${d?"Already in your dictionary":""}</td></tr>`;}).join("")}
+    </tbody></table>
+    <div class="dest"><b>Put the words in</b>
+      <label><input type="radio" name="dest" value="new" ${I.dest==="new"?"checked":""}> a new group <input class="inp sm" id="iname" value="${esc(I.gname)}" aria-label="New group name"></label>
+      <label><input type="radio" name="dest" value="old" ${I.dest==="old"?"checked":""}> an existing group
+        <select class="dd" id="igrp" style="height:40px">${GROUPS.map(g=>`<option value="${g.id}" ${+I.gid===g.id?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label>
+    </div>
+    <p class="hint">AI adds phonetics, examples and audio to the imported words in the background.</p>
+    <div class="setrow"><button class="btn" data-act="do-import" ${fresh.length?"":"disabled"}>Import ${plural(fresh.length,"word")}</button><button class="btn2" data-act="imp-cancel">Cancel</button></div>
+  </section>`;
+}
+
+/* ---------- modal ---------- */
+function modalHTML(){
+  const M=st.modal; if(!M) return "";
+  let h="";
+  if(M.t==="new-group"||M.t==="rename"){ const g=M.t==="rename"?grp(M.id):null;
+    h=`<h2>${g?"Rename group":"New group"}</h2><div class="fld"><label for="mg">Group name</label><input class="inp" id="mg" value="${esc(g?g.name:"")}" placeholder="e.g. Work, Travel, Idioms"></div>
+    <div class="acts"><button class="btn2" data-act="close">Cancel</button><button class="btn" data-act="${g?"save-rename":"save-group"}" data-id="${g?g.id:""}">${g?"Save":"Add group"}</button></div>`; }
+  if(M.t==="add-word"){
+    h=`<h2>Add a word</h2>
+    <div class="fld"><label for="mgrp">Group</label>
+      <input class="inp" id="mgrp" list="mgrpList" autocomplete="off" value="${esc(M.gname)}" placeholder="Type or pick a group">
+      <datalist id="mgrpList">${[...GROUPS].sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<option value="${esc(g.name)}"></option>`).join("")}</datalist>
+      <span class="hint" id="mgrpHint"></span></div>
+    <div class="fld"><label for="mw">English word or phrase</label><input class="inp" id="mw" autocomplete="off" placeholder="e.g. resilient" value="${esc(M.w||"")}"></div>
+    <div class="fld"><label for="mtr">Translation <span style="font-weight:400">(optional, AI fills it in)</span></label><input class="inp" id="mtr" autocomplete="off" placeholder="leave empty or type your own" value="${esc(M.tr||"")}"></div>
+    <p class="hint"><kbd>Enter</kbd> moves to the next field and saves on the last one. The window stays open for the next word.</p>
+    ${M.added.length?`<div class="added">${M.added.slice(0,4).map(a=>`<span>✓ <b>${esc(a.w)}</b> → ${esc(a.g)}</span>`).join("")}${M.added.length>4?`<span class="muted">and ${M.added.length-4} more</span>`:""}</div>`:""}
+    <div class="acts"><button class="btn2" data-act="close">${M.added.length?"Done":"Cancel"}</button><button class="btn" data-act="modal-add">Add word</button></div>`; }
+  if(M.t==="del-group"){ const g=grp(M.id), n=inG(g.id).length;
+    h=`<h2>Delete “${esc(g.name)}”?</h2><p class="muted">${n?`Its ${plural(n,"word")} will be deleted too. `:""}This can’t be undone. Points you earned stay.</p>
+    <div class="acts"><button class="btn2" data-act="close">Cancel</button><button class="btn danger" data-act="yes-del-group" data-id="${g.id}">Delete</button></div>`; }
+  if(M.t==="del-word"){ const w=WORDS.find(x=>x.id===M.id);
+    h=`<h2>Delete “${esc(w.w)}”?</h2><p class="muted">This can’t be undone. Points you earned stay.</p>
+    <div class="acts"><button class="btn2" data-act="close">Cancel</button><button class="btn danger" data-act="yes-del-word" data-id="${w.id}">Delete</button></div>`; }
+  if(M.t==="reset-group"){ const g=grp(M.id);
+    h=`<h2>Reset progress?</h2><p class="muted">Every word in “${esc(g.name)}” goes back to 0% and comes back into your games.</p>
+    <div class="acts"><button class="btn2" data-act="close">Cancel</button><button class="btn" data-act="yes-reset-group" data-id="${g.id}">Reset</button></div>`; }
+  if(M.t==="move"){ const w=WORDS.find(x=>x.id===M.id);
+    h=`<h2>Move “${esc(w.w)}”</h2><div class="fld"><label for="mv">To group</label><select class="dd" id="mv" style="width:100%">${GROUPS.filter(g=>g.id!==w.g).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join("")}</select></div>
+    <div class="acts"><button class="btn2" data-act="close">Cancel</button><button class="btn" data-act="yes-move" data-id="${w.id}">Move</button></div>`; }
+  return `<div class="scrim" data-act="scrim"><div class="modal" role="dialog" aria-modal="true">${h}</div></div>`;
+}
+
+/* ============ render ============ */
+function render(){
+  let body;
+  if(st.q.trim()) body=searchView();
+  else if(st.tab==="groups") body = st.view==="group"?groupView():groupsList();
+  else if(st.tab==="games") body = st.play?(st.play.i>=st.play.qs.length?endView():playView()):gamesSetup();
+  else body=importView();
+  const a=document.activeElement, id=a&&a.id, pos=a&&a.selectionStart;
+  $("#app").innerHTML = abar()+tabs()+body;
+  $("#modal").innerHTML = modalHTML();
+  if(id && $("#"+id) && ["q","nw","ntr","iname","mgrp","mw","mtr"].includes(id)){ const el=$("#"+id); el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} }
+  if(st.modal && !$(".modal :focus")){ const f=$(".modal input,.modal select,.modal .btn"); f&&f.focus(); }
+  pickerHint();
+  if($("#next")) $("#next").focus();
+  bindDrop();
+}
+
+/* ============ actions ============ */
+function createWord(g, w, tr){
+  const ai=AI[aiKey(w)];
+  const nw={id:++wid,g,w,tr,ph:"",ex:"",p:0,at:wid,pending:true};
+  WORDS.push(nw); st.flash=nw.id; st.lastG=g;
+  earn(1,"new word");
+  setTimeout(()=>{ nw.pending=false;
+    if(ai){ if(!nw.tr) nw.tr=ai[0]; nw.ph=ai[1]; nw.ex=ai[2]; } else nw.noai=true;
+    refocus(render); }, 1400);
+  return nw;
+}
+function refocus(fn){ const a=document.activeElement, id=a&&a.id, pos=a&&a.selectionStart; fn(); if(id&&$("#"+id)){ const el=$("#"+id); el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } }
+function addWord(){
+  const w=$("#nw").value.trim(), tr=$("#ntr").value.trim();
+  if(!w){ $("#nw").focus(); return; }
+  createWord(st.g, w, tr);
+  $("#nw").value=""; $("#ntr").value="";
+  render(); $("#nw").focus();
+}
+/* Group picker: same pattern as Swipe's class picker (text field + datalist).
+   A name that matches no group creates that group when the word is saved. */
+const groupByName = t => { const k=t.trim().toLowerCase(); return k ? GROUPS.find(g=>g.name.trim().toLowerCase()===k) : null; };
+function pickerHint(){
+  const el=$("#mgrp"), h=$("#mgrpHint"); if(!el||!h) return;
+  const t=el.value.trim();
+  h.innerHTML = !t ? "Type a group name or pick one from the list."
+    : groupByName(t) ? `${plural(inG(groupByName(t).id).length,"word")} in this group.`
+    : `<b style="color:var(--tbt-blue)">New group:</b> “${esc(t)}” will be created when you add the word.`;
+}
+function modalAddWord(){
+  const gt=$("#mgrp").value.trim(), w=$("#mw").value.trim(), tr=$("#mtr").value.trim();
+  if(!gt){ $("#mgrp").focus(); return; }
+  if(!w){ $("#mw").focus(); return; }
+  let g=groupByName(gt);
+  if(!g){ g={id:++gid,name:gt,at:Date.now()}; GROUPS.push(g); }
+  const nw=createWord(g.id, w, tr);
+  st.modal.added.unshift({w:nw.w, g:g.name});
+  Object.assign(st.modal,{gname:g.name,w:"",tr:""});
+  render();
+  $("#mw").focus();
+}
+function openGroup(id){ Object.assign(st,{tab:"groups",view:"group",g:id,menu:null,edit:null,q:""}); render(); scrollTo(0,0); setTimeout(()=>$("#nw")&&$("#nw").focus(),0); }
+function answer(id){
+  const P=st.play; if(P.picked!==null) return;
+  const q=P.qs[P.i]; P.picked=id; const ok=id===q.w.id;
+  q.w.p = ok ? Math.min(SET.learnt,q.w.p+SET.right) : Math.max(0,q.w.p-SET.wrong);
+  P.log.push({w:q.w,ok}); render();
+}
+function loadRows(name, rows){
+  st.imp={name, rows, dest:"new", gname:name, gid:GROUPS[0]?.id}; render();
+}
+function bindDrop(){
+  const d=$("#drop"), f=$("#file"); if(!d) return;
+  f.onchange=()=>readFile(f.files[0]);
+  d.ondragover=e=>{e.preventDefault();d.classList.add("over");};
+  d.ondragleave=()=>d.classList.remove("over");
+  d.ondrop=e=>{e.preventDefault();d.classList.remove("over");readFile(e.dataTransfer.files[0]);};
+}
+function readFile(file){
+  if(!file) return; const name=file.name.replace(/\.[^.]+$/,"");
+  if(/\.csv$/i.test(file.name)){
+    file.text().then(t=>{ const rows=t.split(/\r?\n/).map(l=>l.split(/[;,\t]/).map(s=>s.trim().replace(/^"|"$/g,""))).filter(r=>r[0]);
+      if(rows.length && /^(word|english|słowo|slowo)$/i.test(rows[0][0])) rows.shift();
+      loadRows(name, rows.map(r=>[r[0],r[1]||""])); });
+  } else loadRows(name, SAMPLE_FILE.rows); /* prototype: .xlsx shows the sample rows */
+}
+
+document.addEventListener("click", e=>{
+  const t=e.target;
+  // close an open menu on any click outside it
+  if(st.menu && !t.closest(".menu") && !t.closest("[data-menu]")){ st.menu=null; render(); if(!t.closest("button,input,select,label")) return; }
+  const tab=t.closest("[data-tab]"); if(tab){ Object.assign(st,{tab:tab.dataset.tab,view:"list",q:"",menu:null}); if(tab.dataset.tab!=="games") st.play=null; render(); return; }
+  const m=t.closest("[data-menu]"); if(m){ st.menu = st.menu===m.dataset.menu?null:m.dataset.menu; render(); return; }
+  const o=t.closest("[data-open]"); if(o){ openGroup(+o.dataset.open); return; }
+  const sy=t.closest("[data-say]"); if(sy){ say(WORDS.find(w=>w.id===+sy.dataset.say).w); return; }
+  const pl=t.closest("[data-play]"); if(pl){ Object.assign(st,{tab:"games",q:"",menu:null,play:null}); st.game.groups=[+pl.dataset.play]; render(); scrollTo(0,0); return; }
+  const gt=t.closest("[data-gtype]"); if(gt){ st.game.type=gt.dataset.gtype; render(); return; }
+  const gg=t.closest("[data-gg]"); if(gg){ const id=+gg.dataset.gg, a=st.game.groups; st.game.groups = a.includes(id)?a.filter(x=>x!==id):[...a,id]; render(); return; }
+  const pk=t.closest("[data-pick]"); if(pk){ answer(+pk.dataset.pick); return; }
+  const b=t.closest("[data-act]"); if(!b) return;
+  const id=+b.dataset.id, A=b.dataset.act;
+  if(A==="scrim" && t!==b) return;
+  switch(A){
+    case "home": Object.assign(st,{tab:"groups",view:"list",g:null,menu:null,play:null,q:""}); render(); break;
+    case "clear": st.q=""; render(); $("#q").focus(); break;
+    case "new-group": st.modal={t:"new-group"}; st.menu=null; render(); break;
+    case "new-word": { const g=grp(st.view==="group"?st.g:st.lastG); st.modal={t:"add-word",gname:g?g.name:"",added:[]}; st.menu=null; render(); pickerHint(); $(g?"#mw":"#mgrp").focus(); break; }
+    case "modal-add": modalAddWord(); break;
+    case "rename": st.modal={t:"rename",id}; st.menu=null; render(); break;
+    case "del-group": st.modal={t:"del-group",id}; st.menu=null; render(); break;
+    case "reset-group": st.modal={t:"reset-group",id}; st.menu=null; render(); break;
+    case "del-word": st.modal={t:"del-word",id}; st.menu=null; render(); break;
+    case "move": st.modal={t:"move",id}; st.menu=null; render(); break;
+    case "close": case "scrim": st.modal=null; render(); break;
+    case "save-group": { const n=$("#mg").value.trim(); if(!n) return $("#mg").focus(); const g={id:++gid,name:n,at:Date.now()}; GROUPS.push(g); st.modal=null; openGroup(g.id); break; }
+    case "save-rename": { const n=$("#mg").value.trim(); if(!n) return; grp(id).name=n; st.modal=null; render(); break; }
+    case "yes-del-group": { for(let i=WORDS.length-1;i>=0;i--) if(WORDS[i].g===id) WORDS.splice(i,1); GROUPS.splice(GROUPS.findIndex(g=>g.id===id),1); st.modal=null; Object.assign(st,{view:"list",g:null}); render(); break; }
+    case "yes-del-word": WORDS.splice(WORDS.findIndex(w=>w.id===id),1); st.modal=null; render(); break;
+    case "yes-reset-group": inG(id).forEach(w=>w.p=0); st.modal=null; render(); break;
+    case "yes-move": { const w=WORDS.find(x=>x.id===id); w.g=+$("#mv").value; st.modal=null; render(); toast(`Moved to ${esc(grp(w.g).name)}`); break; }
+    case "reset-word": WORDS.find(w=>w.id===id).p=0; st.menu=null; render(); break;
+    case "edit": st.edit=id; st.menu=null; render(); $("#e_w")&&$("#e_w").focus(); break;
+    case "cancel-edit": st.edit=null; render(); break;
+    case "save-edit": { const w=WORDS.find(x=>x.id===id); w.w=$("#e_w").value.trim()||w.w; w.tr=$("#e_tr").value.trim(); w.ph=$("#e_ph").value.trim(); w.ex=$("#e_ex").value.trim(); w.noai=false; st.edit=null; render(); break; }
+    case "add-word": addWord(); break;
+    case "start": startGame(); render(); scrollTo(0,0); break;
+    case "next": st.play.i++; st.play.picked=null; render(); break;
+    case "quit": if(st.play.log.length){ st.play.qs=st.play.qs.slice(0,st.play.log.length); st.play.i=st.play.qs.length; } else st.play=null; render(); break;
+    case "again": startGame(); render(); break;
+    case "games-home": st.play=null; render(); break;
+    case "sample": loadRows(SAMPLE_FILE.name, SAMPLE_FILE.rows); break;
+    case "imp-cancel": st.imp=null; render(); break;
+    case "do-import": {
+      const I=st.imp, have=new Set(WORDS.map(w=>fold(w.w))), fresh=I.rows.filter(r=>!have.has(fold(r[0])));
+      let g;
+      if(I.dest==="new"){ g={id:++gid,name:I.gname.trim()||I.name,at:Date.now()}; GROUPS.push(g); } else g=grp(+I.gid);
+      fresh.forEach(r=>{ const ai=AI[aiKey(r[0])]; WORDS.push({id:++wid,g:g.id,w:r[0],tr:r[1]||(ai?ai[0]:""),ph:ai?ai[1]:"",ex:ai?ai[2]:"",p:0,at:wid,noai:!ai}); });
+      st.imp=null; earn(fresh.length,`${plural(fresh.length,"word")} imported`); openGroup(g.id); break; }
+  }
+});
+document.addEventListener("input", e=>{
+  if(e.target.id==="q"){ st.q=e.target.value; st.menu=null; render(); }
+  if(e.target.id==="iname") st.imp.gname=e.target.value;
+  if(e.target.id==="mgrp"){ st.modal.gname=e.target.value; pickerHint(); }
+  if(e.target.id==="mw") st.modal.w=e.target.value;
+  if(e.target.id==="mtr") st.modal.tr=e.target.value;
+});
+document.addEventListener("change", e=>{
+  if(e.target.id==="gn"){ st.game.n=e.target.value; render(); }
+  if(e.target.name==="dest"){ st.imp.dest=e.target.value; }
+  if(e.target.id==="igrp"){ st.imp.gid=e.target.value; st.imp.dest="old"; render(); }
+});
+document.addEventListener("keydown", e=>{
+  const id=e.target.id;
+  if(e.key==="Escape"){ if(st.modal){st.modal=null;render();return;} if(st.menu){st.menu=null;render();return;} if(st.edit){st.edit=null;render();return;} if(id==="q"&&st.q){st.q="";render();return;} }
+  if(e.key==="Enter"){
+    if(id==="nw"){ e.preventDefault(); if(e.target.value.trim()) $("#ntr").focus(); return; }
+    if(id==="ntr"){ e.preventDefault(); addWord(); return; }
+    if(id==="mgrp"){ e.preventDefault(); if(e.target.value.trim()) $("#mw").focus(); return; }
+    if(id==="mw"){ e.preventDefault(); if(e.target.value.trim()) $("#mtr").focus(); return; }
+    if(id==="mtr"){ e.preventDefault(); modalAddWord(); return; }
+    if(id==="mg"){ e.preventDefault(); $(".modal .btn:not(.danger)")?.click(); return; }
+    if(id&&id.startsWith("e_")){ e.preventDefault(); $('[data-act="save-edit"]').click(); return; }
+  }
+  if(e.key==="/" && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && !st.modal){ e.preventDefault(); $("#q").focus(); return; }
+  if(st.play && st.play.i<st.play.qs.length && st.play.picked===null && /^[1-4]$/.test(e.key) && !/INPUT|SELECT/.test(e.target.tagName)){
+    const o=st.play.qs[st.play.i].opts[+e.key-1]; if(o) answer(o.id);
+  }
+});
+render();
+</script>
