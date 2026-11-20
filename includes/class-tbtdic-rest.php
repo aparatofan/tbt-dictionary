@@ -8,7 +8,9 @@
  *   DELETE /groups/{id}           delete with its words
  *   POST   /groups/{id}/reset     progress 0 on its words
  *   POST   /words                 create {group_id | group_name, term, translation}
- *   POST   /words/{id}/fill       run the AI fill-in (pending words only)
+ *   POST   /words/{id}/fill       run the AI fill-in (pending words added in
+ *                                 the last 10 minutes; older ones are the
+ *                                 background job's, TBTDIC_Fill)
  *   PATCH  /words/{id}            edit or move
  *   DELETE /words/{id}            delete
  *   POST   /words/{id}/reset      progress 0
@@ -272,14 +274,12 @@ class TBTDIC_Rest {
 		if ( ! $word ) {
 			return self::not_found();
 		}
-		if ( 'pending' === $word['ai_status'] ) {
-			$fields = TBTDIC_AI::fill( $user, $word );
-			// The student may have typed a translation while the AI worked.
-			$now = TBTDIC_DB::word( $user, (int) $word['id'] );
-			if ( $now && '' !== (string) $now['translation'] ) {
-				unset( $fields['translation'] );
-			}
-			TBTDIC_DB::update_word( $user, (int) $word['id'], $fields );
+		// The page fills only a word added in the last few minutes (its own
+		// fill-in, maybe interrupted). Older pending words, e.g. those copied
+		// from AYS, are left to the background job, so they never use up the
+		// student's daily limit.
+		if ( 'pending' === $word['ai_status'] && TBTDIC_Fill::page_may_fill( (string) $word['created_at'] ) ) {
+			TBTDIC_AI::fill_and_save( $user, $word );
 			$word = TBTDIC_DB::word( $user, (int) $word['id'] );
 		}
 		return self::respond( array( 'word' => self::word_out( $word ) ) );
@@ -375,13 +375,9 @@ class TBTDIC_Rest {
 	 * @return array|WP_Error Group row.
 	 */
 	private static function make_group( $user_id, $name ) {
-		$id = TBTDIC_DB::insert_group( $user_id, $name );
-		if ( $id ) {
-			return TBTDIC_DB::group( $user_id, $id );
-		}
-		$existing = TBTDIC_DB::group_by_name( $user_id, $name );
-		if ( $existing ) {
-			return $existing;
+		$group = TBTDIC_DB::find_or_create_group( $user_id, $name );
+		if ( $group ) {
+			return $group;
 		}
 		return self::error( 'tbtdic_write_failed', __( 'Could not save that group. Try again.', 'tbt-dictionary' ), 500 );
 	}

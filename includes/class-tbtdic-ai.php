@@ -10,7 +10,12 @@
  *
  * Daily limit: `tbtdic_ai_per_day` fill-ins per student per site-time-zone
  * day (0 = no limit), counted in user meta only after a successful answer,
- * as TBTD_Translator counts. Over the limit the word is `skipped`.
+ * as TBTD_Translator counts. Over the limit the word is `skipped`. The
+ * background job (TBTDIC_Fill) neither checks nor counts the limit.
+ *
+ * Only a `pending` word is filled, and the answer is saved only while it is
+ * still `pending` (TBTDIC_DB::save_fill()), so the page and the job never
+ * both store a fill-in for the same word: the first answer wins.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -123,19 +128,46 @@ class TBTDIC_AI {
 	}
 
 	/**
+	 * Fill one pending word and save the answer, unless the word stopped
+	 * being pending meanwhile. Never throws.
+	 *
+	 * @param int   $user_id   The word's owner.
+	 * @param array $word      The word row (id, term, translation, ai_status).
+	 * @param bool  $use_limit False for the background job: its fills do not
+	 *                         count against the student's daily limit.
+	 * @return bool True when this call saved a fill-in.
+	 */
+	public static function fill_and_save( $user_id, array $word, $use_limit = true ) {
+		if ( 'pending' !== (string) ( $word['ai_status'] ?? '' ) ) {
+			return false;
+		}
+		$fields = self::fill( $user_id, $word, $use_limit );
+		// The student may have typed a translation while the AI worked.
+		$now = TBTDIC_DB::word( $user_id, (int) $word['id'] );
+		if ( ! $now || 'pending' !== (string) $now['ai_status'] ) {
+			return false;
+		}
+		if ( '' !== (string) $now['translation'] ) {
+			unset( $fields['translation'] );
+		}
+		return TBTDIC_DB::save_fill( $user_id, (int) $word['id'], $fields );
+	}
+
+	/**
 	 * Work out the fill-in for one pending word. Never throws.
 	 *
-	 * @param int   $user_id The word's owner (the session user).
-	 * @param array $word    The word row.
+	 * @param int   $user_id   The word's owner.
+	 * @param array $word      The word row.
+	 * @param bool  $use_limit False skips the daily limit and its count.
 	 * @return array Columns to store: ai_status, and phonetic / example /
 	 *               translation when the AI supplied them.
 	 */
-	public static function fill( $user_id, array $word ) {
+	public static function fill( $user_id, array $word, $use_limit = true ) {
 		try {
 			if ( '' === self::api_key() ) {
 				return array( 'ai_status' => 'failed' );
 			}
-			if ( self::over_limit( $user_id ) ) {
+			if ( $use_limit && self::over_limit( $user_id ) ) {
 				return array( 'ai_status' => 'skipped' );
 			}
 
@@ -150,7 +182,9 @@ class TBTDIC_AI {
 				return array( 'ai_status' => 'failed' );
 			}
 
-			self::count( $user_id );
+			if ( $use_limit ) {
+				self::count( $user_id );
+			}
 
 			$out = array( 'ai_status' => 'done' );
 			if ( '' !== $ai['phonetic'] ) {

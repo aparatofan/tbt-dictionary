@@ -2,7 +2,7 @@
 
 Each student keeps their own dictionary on The Blue Tree: words in groups they name themselves. A student types a word; AI fills in the translation (if left empty), the British phonetics and an example sentence; the word can be heard. Every new word earns TBT Points.
 
-It replaces the third-party AYS Personal Dictionary over three releases: 0.1.0 (this one) is the dictionary itself, 0.2.0 adds games, 0.3.0 adds import and moves every student's AYS words across.
+It replaces the third-party AYS Personal Dictionary in stages: 0.1.0 is the dictionary itself, 0.1.1 copies every student's AYS words across, 0.2.0 adds games, 0.3.0 adds Excel/CSV import.
 
 ## Shortcode
 
@@ -17,6 +17,10 @@ A dictionary belongs to one user: nobody else, teachers included, can see or cha
 - **OpenAI API key** — blank uses TBT Swipe's key. Enter `-` to remove a saved key. With no key anywhere, AI fill-in is off and words save as typed.
 - **Model** — blank uses TBT Swipe's model, else `gpt-4o-mini`.
 - **AI fill-ins per student per day** — default 100; 0 means no limit. Past the limit a word saves without AI.
+
+## Copying the old AYS dictionary (0.1.1)
+
+When AYS Personal Dictionary's tables are on the site, **Dictionary Settings** shows an **Old dictionary** section with a **Copy to TBT Dictionary** button. It copies every student's AYS groups and words, with their progress (learned in AYS → Learned; otherwise AYS's percentage), into their TBT dictionary. AYS is only read, never changed, and stays on until it is switched off. Running the copy again only adds words that are new in AYS; a word the student already has is skipped. Copied words earn no points. Their phonetics and examples are added by a background job, about 10 words every 2 minutes while the site has visitors, without using the students' daily AI limit; the page itself only fills words added in the last 10 minutes.
 
 Developers: the `tbtdic_translation_language` filter changes the translation language (default `Polish`).
 

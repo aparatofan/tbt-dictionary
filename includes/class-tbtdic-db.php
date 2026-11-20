@@ -177,11 +177,13 @@ class TBTDIC_DB {
 	}
 
 	/**
-	 * @param int    $user_id Owner.
-	 * @param string $name    Cleaned name.
+	 * @param int    $user_id    Owner.
+	 * @param string $name       Cleaned name.
+	 * @param string $created_at UTC 'Y-m-d H:i:s'; '' for now (the AYS copy
+	 *                           keeps the original date).
 	 * @return int New ID, 0 on failure (e.g. the unique key).
 	 */
-	public static function insert_group( $user_id, $name ) {
+	public static function insert_group( $user_id, $name, $created_at = '' ) {
 		global $wpdb;
 		$now      = gmdate( 'Y-m-d H:i:s' );
 		$suppress = $wpdb->suppress_errors( true );
@@ -190,13 +192,37 @@ class TBTDIC_DB {
 			array(
 				'user_id'    => (int) $user_id,
 				'name'       => (string) $name,
-				'created_at' => $now,
+				'created_at' => '' !== (string) $created_at ? (string) $created_at : $now,
 				'updated_at' => $now,
 			),
 			array( '%d', '%s', '%s', '%s' )
 		);
 		$wpdb->suppress_errors( $suppress );
 		return $ok ? (int) $wpdb->insert_id : 0;
+	}
+
+	/**
+	 * The user's group with this name (the _ci match), made when missing. A
+	 * race with the unique key returns the group that won.
+	 *
+	 * @param int    $user_id    Owner.
+	 * @param string $name       Cleaned name.
+	 * @param string $created_at For a new group: UTC 'Y-m-d H:i:s', '' for now.
+	 * @param bool   $created    Set to true when this call made the group.
+	 * @return array|null Group row; null when it could not be saved.
+	 */
+	public static function find_or_create_group( $user_id, $name, $created_at = '', &$created = false ) {
+		$created  = false;
+		$existing = self::group_by_name( $user_id, $name );
+		if ( $existing ) {
+			return $existing;
+		}
+		$id = self::insert_group( $user_id, $name, $created_at );
+		if ( $id ) {
+			$created = true;
+			return self::group( $user_id, $id );
+		}
+		return self::group_by_name( $user_id, $name );
 	}
 
 	/**
@@ -336,12 +362,16 @@ class TBTDIC_DB {
 
 	/**
 	 * @param int   $user_id Owner.
-	 * @param array $data    group_id, term, term_key, translation.
+	 * @param array $data    group_id, term, term_key, translation; optional
+	 *                       progress (default 0), ai_status (default
+	 *                       'pending') and created_at (UTC, default now),
+	 *                       which the AYS copy sets.
 	 * @return int New ID, 0 on failure.
 	 */
 	public static function insert_word( $user_id, array $data ) {
 		global $wpdb;
-		$now = gmdate( 'Y-m-d H:i:s' );
+		$now     = gmdate( 'Y-m-d H:i:s' );
+		$created = isset( $data['created_at'] ) && '' !== (string) $data['created_at'] ? (string) $data['created_at'] : $now;
 		$ok  = $wpdb->insert(
 			self::words_table(),
 			array(
@@ -352,9 +382,9 @@ class TBTDIC_DB {
 				'translation' => (string) $data['translation'],
 				'phonetic'    => '',
 				'example'     => '',
-				'progress'    => 0,
-				'ai_status'   => 'pending',
-				'created_at'  => $now,
+				'progress'    => isset( $data['progress'] ) ? (float) $data['progress'] : 0,
+				'ai_status'   => isset( $data['ai_status'] ) ? (string) $data['ai_status'] : 'pending',
+				'created_at'  => $created,
 				'updated_at'  => $now,
 			),
 			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%s', '%s' )
@@ -407,6 +437,88 @@ class TBTDIC_DB {
 			$format,
 			array( '%d', '%d' )
 		);
+	}
+
+	/**
+	 * Save an AI fill-in, only while the word is still `pending`: when the
+	 * page and the background job fill the same word, the first answer wins
+	 * and the second changes nothing.
+	 *
+	 * @param int   $user_id Owner.
+	 * @param int   $word_id Word ID.
+	 * @param array $fields  ai_status, and any of translation, phonetic, example.
+	 * @return bool True when this call saved it.
+	 */
+	public static function save_fill( $user_id, $word_id, array $fields ) {
+		global $wpdb;
+		$data   = array();
+		$format = array();
+		foreach ( array( 'translation', 'phonetic', 'example', 'ai_status' ) as $col ) {
+			if ( array_key_exists( $col, $fields ) ) {
+				$data[ $col ] = (string) $fields[ $col ];
+				$format[]     = '%s';
+			}
+		}
+		if ( ! isset( $data['ai_status'] ) ) {
+			return false;
+		}
+		$data['updated_at'] = gmdate( 'Y-m-d H:i:s' );
+		$format[]           = '%s';
+
+		return (int) $wpdb->update(
+			self::words_table(),
+			$data,
+			array(
+				'id'        => (int) $word_id,
+				'user_id'   => (int) $user_id,
+				'ai_status' => 'pending',
+			),
+			$format,
+			array( '%d', '%d', '%s' )
+		) > 0;
+	}
+
+	/**
+	 * For the background fill-in (any user): the oldest `pending` words
+	 * created before $before.
+	 *
+	 * @param int    $limit  How many.
+	 * @param string $before UTC 'Y-m-d H:i:s'.
+	 * @return array[] Rows with id, user_id, term, translation, ai_status.
+	 */
+	public static function pending_words( $limit, $before ) {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, user_id, term, translation, ai_status FROM ' . self::words_table() . " WHERE ai_status = 'pending' AND created_at < %s ORDER BY created_at ASC, id ASC LIMIT %d",
+				$before,
+				$limit
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * How many words (any user) wait for their fill-in.
+	 *
+	 * @return int
+	 */
+	public static function count_pending() {
+		global $wpdb;
+		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::words_table() . " WHERE ai_status = 'pending'" );
+	}
+
+	/**
+	 * Every term_key a user has, for the AYS copy's duplicate check.
+	 *
+	 * @param int $user_id Owner.
+	 * @return string[]
+	 */
+	public static function term_keys( $user_id ) {
+		global $wpdb;
+		$col = $wpdb->get_col( $wpdb->prepare( 'SELECT term_key FROM ' . self::words_table() . ' WHERE user_id = %d', $user_id ) );
+		return is_array( $col ) ? array_map( 'strval', $col ) : array();
 	}
 
 	/**
