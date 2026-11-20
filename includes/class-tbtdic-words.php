@@ -168,6 +168,25 @@ class TBTDIC_Words {
 	}
 
 	/**
+	 * A word's progress copied from AYS Personal Dictionary: learned there →
+	 * TBTDIC_LEARNT_DEFAULT; otherwise AYS's `percentage` / 10 (its share of
+	 * "learnt", so a site that changed AYS's points still copies the right
+	 * share), 0–10, two decimals.
+	 *
+	 * @param mixed $completed  AYS `completed` (1 = learned).
+	 * @param mixed $percentage AYS `percentage` (0–100).
+	 * @return float
+	 */
+	public static function ays_progress( $completed, $percentage ) {
+		$max = (float) TBTDIC_LEARNT_DEFAULT;
+		if ( 1 === (int) $completed ) {
+			return $max;
+		}
+		$p = is_numeric( $percentage ) ? (float) $percentage / 10 : 0.0;
+		return round( max( 0.0, min( $max, $p ) ), 2 );
+	}
+
+	/**
 	 * Read the AI's JSON answer. Keeps translation (≤190), phonetic (≤80, only
 	 * when it starts and ends with "/") and example (≤300), tags stripped.
 	 *

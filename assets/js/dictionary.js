@@ -523,8 +523,11 @@
 			st.words = Array.isArray( data.words ) ? data.words : [];
 			st.loaded = true;
 			render();
-			// A word left pending (the page closed before its fill-in) gets it now.
-			st.words.filter( ( w ) => w.ai_status === 'pending' ).forEach( ( w ) => fill( w.id ) );
+			// A word added in the last 10 minutes and left pending (the page
+			// closed before its fill-in) gets it now. Older pending words, e.g.
+			// those copied from AYS, are filled by the background job, so they
+			// never use up the student's daily AI limit.
+			st.words.filter( ( w ) => w.ai_status === 'pending' && isRecent( w.created_at ) ).forEach( ( w ) => fill( w.id ) );
 		} ).catch( ( err ) => {
 			st.loadError = errorText( err, 'Could not load your dictionary. Check your connection and try again.' );
 			render();
@@ -532,6 +535,13 @@
 	}
 
 	/* ---------- Actions ---------- */
+
+	// created_at is UTC 'Y-m-d H:i:s'. The server checks the same 10 minutes.
+	const PAGE_FILL_MS = 10 * 60 * 1000;
+	function isRecent( createdAt ) {
+		const t = Date.parse( String( createdAt || '' ).replace( ' ', 'T' ) + 'Z' );
+		return ! isNaN( t ) && Date.now() - t < PAGE_FILL_MS;
+	}
 
 	// One fill-in at a time keeps the AI calls (and the daily count) orderly.
 	let fillChain = Promise.resolve();

@@ -1,8 +1,10 @@
 <?php
 /**
  * Settings page under the TBT Hub menu (own menu when Hub is absent):
- * OpenAI key, model, AI fill-ins per student per day. Administrators only.
- * The key is stored server-side and never sent to a page.
+ * OpenAI key, model, AI fill-ins per student per day, and (when AYS
+ * Personal Dictionary's tables exist) the copy of the old dictionary.
+ * Administrators only. The key is stored server-side and never sent to a
+ * page.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -12,9 +14,33 @@ class TBTDIC_Settings {
 	const GROUP = 'tbtdic_settings';
 	const SLUG  = 'tbt-dictionary-settings';
 
+	/** admin-post action and nonce of the AYS copy. */
+	const COPY_ACTION = 'tbtdic_ays_copy';
+
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_post_' . self::COPY_ACTION, array( $this, 'handle_copy' ) );
+	}
+
+	/**
+	 * The Copy to TBT Dictionary button (POST to admin-post.php).
+	 */
+	public function handle_copy() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'tbt-dictionary' ), 403 );
+		}
+		check_admin_referer( self::COPY_ACTION );
+		$result = TBTDIC_AYS::copy();
+		$url    = add_query_arg(
+			array(
+				'page'        => self::SLUG,
+				'tbtdic_copy' => null === $result ? 'busy' : 'done',
+			),
+			admin_url( 'admin.php' )
+		);
+		wp_safe_redirect( $url . '#tbtdic-ays' );
+		exit;
 	}
 
 	public function register_menu() {
@@ -158,7 +184,88 @@ class TBTDIC_Settings {
 				</table>
 				<?php submit_button(); ?>
 			</form>
+			<?php $this->render_ays(); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * The "Old dictionary" section; nothing when AYS's tables are missing.
+	 */
+	private function render_ays() {
+		if ( ! TBTDIC_AYS::available() ) {
+			return;
+		}
+		$sum     = TBTDIC_AYS::summary();
+		$last    = TBTDIC_AYS::last_copy();
+		$pending = TBTDIC_DB::tables_exist() ? TBTDIC_DB::count_pending() : 0;
+		$flag    = isset( $_GET['tbtdic_copy'] ) ? sanitize_key( wp_unslash( $_GET['tbtdic_copy'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		?>
+		<hr>
+		<h2 class="title" id="tbtdic-ays"><?php esc_html_e( 'Old dictionary (AYS Personal Dictionary)', 'tbt-dictionary' ); ?></h2>
+		<?php if ( 'busy' === $flag ) : ?>
+			<div class="notice notice-warning inline"><p><?php esc_html_e( 'The copy did not run: another copy is still running, or the dictionary tables are not ready. Try again in a few minutes.', 'tbt-dictionary' ); ?></p></div>
+		<?php endif; ?>
+		<p>
+			<?php
+			printf(
+				/* translators: 1: words, 2: students, 3: words already copied */
+				esc_html__( 'Found %1$s words from %2$s students. %3$s of them are already in TBT Dictionary.', 'tbt-dictionary' ),
+				esc_html( number_format_i18n( $sum['words'] ) ),
+				esc_html( number_format_i18n( $sum['students'] ) ),
+				esc_html( number_format_i18n( $sum['already'] ) )
+			);
+			?>
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+			onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent=<?php echo esc_attr( wp_json_encode( __( 'Copying…', 'tbt-dictionary' ) ) ); ?>;">
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::COPY_ACTION ); ?>">
+			<?php wp_nonce_field( self::COPY_ACTION ); ?>
+			<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Copy to TBT Dictionary', 'tbt-dictionary' ); ?></button></p>
+		</form>
+		<?php if ( $last ) : ?>
+			<p>
+				<?php
+				printf(
+					/* translators: 1: words, 2: groups, 3: students, 4: words skipped */
+					esc_html__( 'Copied %1$s words into %2$s groups for %3$s students. Skipped %4$s (already there, empty, or no account).', 'tbt-dictionary' ),
+					esc_html( number_format_i18n( (int) $last['words_copied'] ) ),
+					esc_html( number_format_i18n( (int) $last['groups_created'] ) ),
+					esc_html( number_format_i18n( (int) $last['students'] ) ),
+					esc_html( number_format_i18n( (int) $last['words_skipped'] ) )
+				);
+				if ( (int) $last['users_missing'] > 0 ) {
+					echo ' ';
+					printf(
+						/* translators: %s: number of students */
+						esc_html( _n( '%s student no longer has an account.', '%s students no longer have an account.', (int) $last['users_missing'], 'tbt-dictionary' ) ),
+						esc_html( number_format_i18n( (int) $last['users_missing'] ) )
+					);
+				}
+				?>
+				<br><span class="description">
+				<?php
+				printf(
+					/* translators: %s: date and time */
+					esc_html__( 'Last run: %s', 'tbt-dictionary' ),
+					esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $last['time'] ) )
+				);
+				?>
+				</span>
+			</p>
+		<?php endif; ?>
+		<?php if ( $pending > 0 ) : ?>
+			<p>
+				<?php
+				printf(
+					/* translators: %s: number of words */
+					esc_html( _n( 'Adding phonetics and examples in the background: %s word to go.', 'Adding phonetics and examples in the background: %s words to go.', $pending, 'tbt-dictionary' ) ),
+					esc_html( number_format_i18n( $pending ) )
+				);
+				?>
+			</p>
+		<?php endif; ?>
+		<p class="description"><?php esc_html_e( 'AYS is only read, never changed. Running the copy again only adds words that are new in AYS. Copied words earn no points. Phonetics and examples are added about 10 words every 2 minutes while the site has visitors (WordPress runs background jobs on page visits); these do not count against the students\' daily AI limit.', 'tbt-dictionary' ); ?></p>
 		<?php
 	}
 }

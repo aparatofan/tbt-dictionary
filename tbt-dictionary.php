@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       TBT Dictionary
  * Description:       Each student's own dictionary: words in groups they name, with AI translation, phonetics, an example and audio. New words earn TBT Points.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            The Blue Tree
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TBTDIC_VERSION', '0.1.0' );
+define( 'TBTDIC_VERSION', '0.1.1' );
 define( 'TBTDIC_DB_VERSION', '1' );
 define( 'TBTDIC_FILE', __FILE__ );
 define( 'TBTDIC_DIR', plugin_dir_path( __FILE__ ) );
@@ -20,6 +20,8 @@ define( 'TBTDIC_URL', plugin_dir_url( __FILE__ ) );
 require_once TBTDIC_DIR . 'includes/class-tbtdic-words.php';
 require_once TBTDIC_DIR . 'includes/class-tbtdic-db.php';
 require_once TBTDIC_DIR . 'includes/class-tbtdic-ai.php';
+require_once TBTDIC_DIR . 'includes/class-tbtdic-fill.php';
+require_once TBTDIC_DIR . 'includes/class-tbtdic-ays.php';
 require_once TBTDIC_DIR . 'includes/class-tbtdic-points.php';
 require_once TBTDIC_DIR . 'includes/class-tbtdic-rest.php';
 require_once TBTDIC_DIR . 'includes/class-tbtdic-pages.php';
@@ -32,6 +34,18 @@ function tbtdic_activate() {
 	TBTDIC_DB::install();
 }
 register_activation_hook( __FILE__, 'tbtdic_activate' );
+
+/**
+ * Deactivation: stop the background fill-in (it is scheduled again on the
+ * next request after the plugin is active).
+ */
+function tbtdic_deactivate() {
+	TBTDIC_Fill::unschedule();
+}
+register_deactivation_hook( __FILE__, 'tbtdic_deactivate' );
+
+// The background AI fill-in: every 2 minutes while the plugin is active.
+TBTDIC_Fill::init();
 
 /**
  * Register this plugin on the TBT Hub Overview page. A filter on Hub's own

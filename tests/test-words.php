@@ -62,6 +62,19 @@ check( 'group_percent: one decimal', TBTDIC_Words::group_percent( array( 10, 0, 
 check( 'group_percent: words over the cap count as 100', TBTDIC_Words::group_percent( array( 20, 10 ), 10 ), 100.0 );
 check( 'is_learned', array( TBTDIC_Words::is_learned( 10, 10 ), TBTDIC_Words::is_learned( 9.75, 10 ) ), array( true, false ) );
 
+/* ---------- ays_progress ---------- */
+
+check( 'ays_progress: completed → learned', TBTDIC_Words::ays_progress( 1, 27.5 ), 10.0 );
+check( 'ays_progress: completed as string', TBTDIC_Words::ays_progress( '1', '0' ), 10.0 );
+check( 'ays_progress: 27.5% → 2.75', TBTDIC_Words::ays_progress( 0, 27.5 ), 2.75 );
+check( 'ays_progress: 27.5% from a DB string', TBTDIC_Words::ays_progress( '0', '27.50' ), 2.75 );
+check( 'ays_progress: 150% → 10', TBTDIC_Words::ays_progress( 0, 150 ), 10.0 );
+check( 'ays_progress: 0 → 0', TBTDIC_Words::ays_progress( 0, 0 ), 0.0 );
+check( 'ays_progress: negative → 0', TBTDIC_Words::ays_progress( 0, -20 ), 0.0 );
+check( 'ays_progress: not a number → 0', TBTDIC_Words::ays_progress( 0, null ), 0.0 );
+check( 'ays_progress: two decimals', TBTDIC_Words::ays_progress( 0, 33.333 ), 3.33 );
+check( 'ays_progress: 2.75 shows as 27.5% (one decimal, as the page)', round( TBTDIC_Words::percent( TBTDIC_Words::ays_progress( 0, 27.5 ) ), 1 ), 27.5 );
+
 /* ---------- parse_ai ---------- */
 
 check(
