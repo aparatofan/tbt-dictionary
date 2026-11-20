@@ -88,7 +88,7 @@ class TBTDIC_Pages {
 				'rest'   => esc_url_raw( rest_url( TBTDIC_Rest::NS . '/' ) ),
 				'nonce'  => wp_create_nonce( 'wp_rest' ),
 				'ajax'   => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
-				'learnt' => TBTDIC_LEARNT_DEFAULT,
+				'learnt' => TBTDIC_Settings::learning()['learnt'],
 				'audio'  => self::audio(),
 			)
 		);

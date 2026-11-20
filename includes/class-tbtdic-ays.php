@@ -191,6 +191,10 @@ class TBTDIC_AYS {
 		// Decided once: with no key the words are `skipped`, not queued.
 		$ai_status = '' !== TBTDIC_AI::api_key() ? 'pending' : 'skipped';
 
+		// Progress in this site's learning points (0.2.0): a word AYS marked
+		// learned comes in learned whatever the setting.
+		$learnt = TBTDIC_Settings::learning()['learnt'];
+
 		$user      = 0;    // The user whose rows are being read.
 		$exists    = false;
 		$keys      = array(); // term_key => true, for $user.
@@ -268,7 +272,7 @@ class TBTDIC_AYS {
 							'term'        => $term,
 							'term_key'    => $key,
 							'translation' => self::text( $w['translation'], TBTDIC_Words::TRANSLATION_MAX ),
-							'progress'    => TBTDIC_Words::ays_progress( $w['completed'], $w['percentage'] ),
+							'progress'    => TBTDIC_Words::ays_progress( $w['completed'], $w['percentage'], $learnt ),
 							'ai_status'   => $ai_status,
 							'created_at'  => self::utc( $w['date_created'] ),
 						)

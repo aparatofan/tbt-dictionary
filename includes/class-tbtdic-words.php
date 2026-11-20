@@ -1,7 +1,7 @@
 <?php
 /**
- * Pure helpers: normalising terms and names, limits, progress maths and the
- * AI answer parser.
+ * Pure helpers: normalising terms and names, limits, progress maths, the
+ * game helpers and the AI answer parser.
  *
  * No WordPress here, so tests/test-words.php runs it with plain PHP. The
  * accent fold is a fixed table (not the intl Normalizer, which a host may
@@ -27,6 +27,19 @@ class TBTDIC_Words {
 	/** Per-user limits. */
 	const MAX_GROUPS = 200;
 	const MAX_WORDS  = 5000;
+
+	/** Learning defaults (AYS's real settings); learnt is TBTDIC_LEARNT_DEFAULT. */
+	const RIGHT_DEFAULT = 1.0;
+	const WRONG_DEFAULT = 0.25;
+
+	/** Games: type → name. */
+	const GAMES = array(
+		'tr' => 'Find the translation',
+		'w'  => 'Find the word',
+	);
+
+	/** Notes object_title of a game round, in characters. */
+	const GAME_TITLE_MAX = 120;
 
 	/** Lower-case accented letter → its base letter (the prototype's fold()). */
 	const FOLD = array(
@@ -168,22 +181,114 @@ class TBTDIC_Words {
 	}
 
 	/**
-	 * A word's progress copied from AYS Personal Dictionary: learned there →
-	 * TBTDIC_LEARNT_DEFAULT; otherwise AYS's `percentage` / 10 (its share of
+	 * A word's progress copied from AYS Personal Dictionary, in this site's
+	 * learning points: learned there → $learnt (so it comes in learned
+	 * whatever the setting); otherwise AYS's `percentage` (its share of
 	 * "learnt", so a site that changed AYS's points still copies the right
-	 * share), 0–10, two decimals.
+	 * share) of $learnt, 0–$learnt, two decimals. Since 0.2.0 the copy passes
+	 * the "Points to learn a word" setting.
 	 *
-	 * @param mixed $completed  AYS `completed` (1 = learned).
-	 * @param mixed $percentage AYS `percentage` (0–100).
+	 * @param mixed     $completed  AYS `completed` (1 = learned).
+	 * @param mixed     $percentage AYS `percentage` (0–100).
+	 * @param float|int $learnt     Points at which a word is learned.
 	 * @return float
 	 */
-	public static function ays_progress( $completed, $percentage ) {
-		$max = (float) TBTDIC_LEARNT_DEFAULT;
+	public static function ays_progress( $completed, $percentage, $learnt = TBTDIC_LEARNT_DEFAULT ) {
+		$max = (float) $learnt > 0 ? (float) $learnt : (float) TBTDIC_LEARNT_DEFAULT;
 		if ( 1 === (int) $completed ) {
 			return $max;
 		}
-		$p = is_numeric( $percentage ) ? (float) $percentage / 10 : 0.0;
+		$p = is_numeric( $percentage ) ? (float) $percentage / 100 * $max : 0.0;
 		return round( max( 0.0, min( $max, $p ) ), 2 );
+	}
+
+	/* ---------- Learning settings and games (0.2.0) ---------- */
+
+	/**
+	 * The three Learning settings, each forced into its range: learnt a whole
+	 * number 1–100 (default TBTDIC_LEARNT_DEFAULT), right and wrong 0–100 in
+	 * quarter steps (defaults 1 and 0.25). Anything not numeric falls back
+	 * to its default.
+	 *
+	 * @param mixed $learnt Points to learn a word.
+	 * @param mixed $right  Points for a right answer.
+	 * @param mixed $wrong  Points taken for a wrong answer.
+	 * @return array{learnt:int,right:float,wrong:float}
+	 */
+	public static function learning( $learnt, $right, $wrong ) {
+		return array(
+			'learnt' => is_numeric( $learnt ) ? (int) max( 1, min( 100, round( (float) $learnt ) ) ) : (int) TBTDIC_LEARNT_DEFAULT,
+			'right'  => self::quarter( $right, self::RIGHT_DEFAULT ),
+			'wrong'  => self::quarter( $wrong, self::WRONG_DEFAULT ),
+		);
+	}
+
+	/**
+	 * A number 0–100 rounded to the nearest 0.25; $default when not numeric.
+	 *
+	 * @param mixed $value   Raw value.
+	 * @param float $default Fallback.
+	 * @return float
+	 */
+	public static function quarter( $value, $default ) {
+		if ( ! is_numeric( $value ) ) {
+			return (float) $default;
+		}
+		return (float) ( round( max( 0.0, min( 100.0, (float) $value ) ) * 4 ) / 4 );
+	}
+
+	/**
+	 * A word's progress after one game answer: + right or − wrong, kept
+	 * within 0 … learnt, two decimals.
+	 *
+	 * @param float|int|string $progress Progress points now.
+	 * @param bool             $correct  Was the answer right?
+	 * @param float|int        $right    Points for a right answer.
+	 * @param float|int        $wrong    Points taken for a wrong answer.
+	 * @param float|int        $learnt   Points at which a word is learned.
+	 * @return float
+	 */
+	public static function answer( $progress, $correct, $right, $wrong, $learnt ) {
+		$p = (float) $progress + ( $correct ? (float) $right : -(float) $wrong );
+		return round( max( 0.0, min( max( 0.0, (float) $learnt ), $p ) ), 2 );
+	}
+
+	/**
+	 * The Notes object_ref of a game round: 'tr:' or 'w:' + md5 of the
+	 * chosen group IDs, sorted ascending, without duplicates, joined by '-'.
+	 * The same groups in any order give the same ref, so replaying them is a
+	 * repeat in Points.
+	 *
+	 * @param string $type      'tr' (Find the translation) or 'w' (Find the word).
+	 * @param array  $group_ids Group IDs.
+	 * @return string '' for an unknown type.
+	 */
+	public static function game_ref( $type, array $group_ids ) {
+		if ( ! isset( self::GAMES[ $type ] ) ) {
+			return '';
+		}
+		$ids = array_values( array_unique( array_map( 'intval', $group_ids ) ) );
+		sort( $ids, SORT_NUMERIC );
+		return $type . ':' . md5( implode( '-', $ids ) );
+	}
+
+	/**
+	 * The Notes object_title of a game round: "Find the translation: A, B",
+	 * cut to 120 characters with "…".
+	 *
+	 * @param string $type  'tr' or 'w'.
+	 * @param array  $names Group names, in the order shown.
+	 * @return string '' for an unknown type.
+	 */
+	public static function game_title( $type, array $names ) {
+		if ( ! isset( self::GAMES[ $type ] ) ) {
+			return '';
+		}
+		$title = self::GAMES[ $type ] . ': ' . implode( ', ', array_map( 'strval', $names ) );
+		if ( mb_strlen( $title ) > self::GAME_TITLE_MAX ) {
+			$title = rtrim( mb_substr( $title, 0, self::GAME_TITLE_MAX - 1 ) ) . '…';
+		}
+		return $title;
 	}
 
 	/**

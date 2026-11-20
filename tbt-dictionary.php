@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       TBT Dictionary
- * Description:       Each student's own dictionary: words in groups they name, with AI translation, phonetics, an example and audio. New words earn TBT Points.
- * Version:           0.1.1
+ * Description:       Each student's own dictionary: words in groups they name, with AI translation, phonetics, an example and audio. New words and finished games earn TBT Points.
+ * Version:           0.2.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            The Blue Tree
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TBTDIC_VERSION', '0.1.1' );
+define( 'TBTDIC_VERSION', '0.2.0' );
 define( 'TBTDIC_DB_VERSION', '1' );
 define( 'TBTDIC_FILE', __FILE__ );
 define( 'TBTDIC_DIR', plugin_dir_path( __FILE__ ) );
@@ -66,7 +66,22 @@ function tbtdic_register_hub_item( $items ) {
 }
 add_filter( 'tbt_hub_items', 'tbtdic_register_hub_item' );
 
-// Points, Swipe and Flashcards are optional: each integration checks for its
+/**
+ * The label TBT Results shows for a finished game round (tool `dictionary`,
+ * 0.2.0). A filter on Results' own hook: when Results is absent nothing
+ * applies it. New words (`dictionary_word`) never reach Results.
+ *
+ * @param array $labels Slug => label.
+ * @return array
+ */
+function tbtdic_tool_labels( $labels ) {
+	$labels               = is_array( $labels ) ? $labels : array();
+	$labels['dictionary'] = 'Dictionary';
+	return $labels;
+}
+add_filter( 'tbtr_tool_labels', 'tbtdic_tool_labels' );
+
+// Notes, Points, Results, Swipe and Flashcards are optional: each integration checks for its
 // function or option when used, never here.
 add_action(
 	'plugins_loaded',
