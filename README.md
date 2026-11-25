@@ -2,7 +2,7 @@
 
 Each student keeps their own dictionary on The Blue Tree: words in groups they name themselves. A student types a word; AI fills in the translation (if left empty), the British phonetics and an example sentence; the word can be heard. Every new word earns TBT Points, and two games (0.2.0) move each word toward "learned".
 
-It replaces the third-party AYS Personal Dictionary in stages: 0.1.0 is the dictionary itself, 0.1.1 copies every student's AYS words across, 0.2.0 adds games, 0.3.0 adds Excel/CSV import.
+It replaces the third-party AYS Personal Dictionary in stages: 0.1.0 is the dictionary itself, 0.1.1 copies every student's AYS words across, 0.2.0 adds games, 0.3.0 adds a lookup route for the TBT Flashcards glossary; Excel/CSV import comes later.
 
 ## Shortcode
 
@@ -22,6 +22,25 @@ The student picks one or more groups and a round size (5, 10, 15, 20 or All; def
 Every answer moves the word's progress at once (right +1, wrong −0.25 with the defaults), so progress stays even when a round is abandoned. A word that reaches the **Points to learn a word** shows **Learned** and leaves the games until its progress is reset.
 
 A **finished** round (last question answered) is recorded once in the TBT Notes activity log as tool `dictionary`: it shows in TBT Results as **Dictionary** ("Find the translation: Group A, Group B", score right/total), in the Class Progress panel, and earns TBT Points' **Dictionary game** rule. Replaying the same groups counts as a repeat in Points. **End game** part-way keeps the progress already earned but records nothing.
+
+## Lookup for the Flashcards glossary (0.3.0)
+
+TBT Flashcards 2.4.0 adds a **+ My Dictionary** button to every row of a lesson glossary. When the glossary loads for a logged-in student, it asks the dictionary one read-only question:
+
+`POST /wp-json/tbt-dictionary/v1/lookup` with `{ "terms": ["sleep deprivation", "to doze off", …] }` (logged in, `X-WP-Nonce` from `wp_rest`; POST only because the list can be long):
+
+```json
+{
+  "groups": [ { "id": 12, "name": "Science words", "word_count": 23 } ],
+  "have":   { "to doze off": "Why we sleep" }
+}
+```
+
+- `groups`: all the student's groups, A–Z by name (ignoring case), with word counts, for the group picker.
+- `have`: each sent term (as sent) that is already in the dictionary, matched as the duplicate check matches (case, spaces and accents ignored), with its group's name. Those rows show **✓ In my dictionary**. Other terms are left out.
+- At most 300 terms (400 above that); each is cut to 120 characters; empty ones are ignored. Logged out: 401. Two queries; nothing is changed.
+
+Adding a word from the glossary uses the usual `POST /words` (with `group_name`, which creates the group if needed) and `POST /words/{id}/fill`, so the duplicate check, AI fill-in and Points work exactly as on the Dictionary page.
 
 ## Settings
 
@@ -51,12 +70,12 @@ Nothing here is required; without any of them the dictionary still works.
 | TBT Notes | Records finished game rounds (`tbt_notes_record_activity()`), so they reach TBT Results, the Class Progress panel and Points. Without Notes the games still work; rounds are just not recorded. |
 | TBT Results | Shows game rounds under the label **Dictionary** (`tbtr_tool_labels`). |
 | TBT Swipe | Its OpenAI key and model, when the dictionary has none of its own. |
-| TBT Flashcards | Audio: with its ElevenLabs key set, each word gets a speaker button through Flashcards' TTS proxy (shared voice and MP3 cache). |
+| TBT Flashcards | Audio: with its ElevenLabs key set, each word gets a speaker button through Flashcards' TTS proxy (shared voice and MP3 cache). Flashcards 2.4.0+ glossaries add words to the dictionary (via `/lookup` and `/words`, 0.3.0). |
 | TBT Hub | The admin menu and the shared design tokens (a byte-identical copy of tokens 2.2 is bundled). |
 
 ## Development
 
-Pure PHP and vanilla JavaScript, no build step. See `CLAUDE.md` and `docs/SPEC-0.2.0.md`.
+Pure PHP and vanilla JavaScript, no build step. See `CLAUDE.md` and `docs/SPEC-0.3.0.md`; `CHANGELOG.md` lists the releases.
 
 ```bash
 for f in tbt-dictionary.php includes/*.php; do php -l "$f"; done

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       TBT Dictionary
  * Description:       Each student's own dictionary: words in groups they name, with AI translation, phonetics, an example and audio. New words and finished games earn TBT Points.
- * Version:           0.2.0
+ * Version:           0.3.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            The Blue Tree
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TBTDIC_VERSION', '0.2.0' );
+define( 'TBTDIC_VERSION', '0.3.0' );
 define( 'TBTDIC_DB_VERSION', '1' );
 define( 'TBTDIC_FILE', __FILE__ );
 define( 'TBTDIC_DIR', plugin_dir_path( __FILE__ ) );
