@@ -152,5 +152,48 @@ check( 'parse_ai: none of the fields → null', TBTDIC_Words::parse_ai( '{"foo":
 check( 'parse_ai: empty string → null', TBTDIC_Words::parse_ai( '' ), null );
 check( 'parse_ai: markdown fence → null', TBTDIC_Words::parse_ai( "```json\n{\"translation\":\"a\"}\n```" ), null );
 
+/* ---------- lookup_keys / have_map (0.3.0) ---------- */
+
+check( 'lookup_keys: de-duplicated across case and accents', TBTDIC_Words::lookup_keys( array( 'Drowsy', 'drowsy', ' DROWSY ', 'Café', 'cafe' ) ), array( 'drowsy', 'cafe' ) );
+check( 'lookup_keys: empty and non-string ignored', TBTDIC_Words::lookup_keys( array( '', '   ', null, 12, array( 'x' ), 'to doze off' ) ), array( 'to doze off' ) );
+check( 'lookup_keys: each cut to 120', mb_strlen( TBTDIC_Words::lookup_keys( array( str_repeat( 'ż', 200 ) ) )[0] ), 120 );
+check( 'lookup_keys: a numeric term stays a string', TBTDIC_Words::lookup_keys( array( '24' ) ), array( '24' ) );
+check( 'lookup_keys: prep runs first', TBTDIC_Words::lookup_keys( array( '<b>Drowsy</b>' ), 'strip_tags' ), array( 'drowsy' ) );
+
+$found = array( 'drowsy' => 'Science words', 'to doze off' => 'Why we sleep', 'zaklocenie' => 'Polish' );
+check(
+	'have_map: keyed by the term as sent; missing terms left out',
+	TBTDIC_Words::have_map( array( 'Drowsy', 'to  doze off', 'sleep deprivation' ), $found ),
+	array( 'Drowsy' => 'Science words', 'to  doze off' => 'Why we sleep' )
+);
+check(
+	'have_map: each spelling sent is its own entry',
+	TBTDIC_Words::have_map( array( 'drowsy', 'DROWSY', 'drowsy' ), $found ),
+	array( 'drowsy' => 'Science words', 'DROWSY' => 'Science words' )
+);
+check( 'have_map: accents folded', TBTDIC_Words::have_map( array( 'Zakłócenie' ), $found ), array( 'Zakłócenie' => 'Polish' ) );
+check( 'have_map: empty and non-string ignored', TBTDIC_Words::have_map( array( '', null, 5 ), array( '' => 'X', '5' => 'Y' ) ), array() );
+check( 'have_map: nothing found → empty', TBTDIC_Words::have_map( array( 'drowsy' ), array() ), array() );
+check( 'have_map: prep runs first', TBTDIC_Words::have_map( array( '<i>drowsy</i>' ), $found, 'strip_tags' ), array( '<i>drowsy</i>' => 'Science words' ) );
+
+/* ---------- sort_by_name (0.3.0) ---------- */
+
+check(
+	'sort_by_name: A–Z ignoring case and accents, ties by id',
+	array_column(
+		TBTDIC_Words::sort_by_name(
+			array(
+				array( 'id' => 4, 'name' => 'why we sleep' ),
+				array( 'id' => 2, 'name' => 'Ćwiczenia' ),
+				array( 'id' => 3, 'name' => 'Animals' ),
+				array( 'id' => 1, 'name' => 'animals' ),
+				array( 'id' => 5, 'name' => 'Science words' ),
+			)
+		),
+		'id'
+	),
+	array( 1, 3, 2, 5, 4 )
+);
+
 echo "\n{$count} checks, {$failures} failed.\n";
 exit( $failures ? 1 : 0 );

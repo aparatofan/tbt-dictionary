@@ -17,6 +17,9 @@
  *   POST   /words/{id}/answer     a game answer {correct}: progress ± (0.2.0)
  *   POST   /games/finish          a finished round {type, group_ids, score,
  *                                 total}: one Notes activity row (0.2.0)
+ *   POST   /lookup                read-only {terms}: the user's groups and
+ *                                 which terms they already have (0.3.0,
+ *                                 for the Flashcards glossary)
  *
  * Every route: logged in only; the user is always the session user and no
  * route takes a user_id. Another user's row is 404, never 403. Cookie
@@ -102,6 +105,12 @@ class TBTDIC_Rest {
 			'callback'            => array( $this, 'finish_game' ),
 			'permission_callback' => $can,
 		) );
+		// POST only because the list of terms can be long; it changes nothing.
+		register_rest_route( self::NS, '/lookup', array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'lookup' ),
+			'permission_callback' => $can,
+		) );
 	}
 
 	/* ---------- Permission ---------- */
@@ -142,6 +151,52 @@ class TBTDIC_Rest {
 				'words'    => array_map( array( __CLASS__, 'word_out' ), $words ),
 				'learnt'   => TBTDIC_Settings::learning()['learnt'],
 				'settings' => TBTDIC_Settings::learning(),
+			)
+		);
+	}
+
+	/* ---------- Lookup (0.3.0) ---------- */
+
+	/**
+	 * For the Flashcards glossary: the user's groups (A–Z, with word counts)
+	 * and, for each sent term already in the dictionary, its group's name.
+	 * Two queries; read-only.
+	 */
+	public function lookup( WP_REST_Request $req ) {
+		$user  = get_current_user_id();
+		$terms = $req->get_param( 'terms' );
+		if ( ! is_array( $terms ) ) {
+			return self::error( 'tbtdic_no_terms', __( 'Send a list of terms.', 'tbt-dictionary' ), 400 );
+		}
+		if ( count( $terms ) > TBTDIC_Words::LOOKUP_MAX ) {
+			return self::error( 'tbtdic_too_many_terms', sprintf( __( 'Send at most %d terms at a time.', 'tbt-dictionary' ), TBTDIC_Words::LOOKUP_MAX ), 400 );
+		}
+		$terms = array_values( $terms );
+
+		$groups = array();
+		$names  = array();
+		foreach ( TBTDIC_Words::sort_by_name( TBTDIC_DB::groups_with_counts( $user ) ) as $g ) {
+			$names[ (int) $g['id'] ] = (string) $g['name'];
+			$groups[]                = array(
+				'id'         => (int) $g['id'],
+				'name'       => (string) $g['name'],
+				'word_count' => (int) $g['word_count'],
+			);
+		}
+
+		$prep  = 'sanitize_text_field'; // As create_word(), so the keys match.
+		$found = array();
+		foreach ( TBTDIC_DB::group_ids_by_keys( $user, TBTDIC_Words::lookup_keys( $terms, $prep ) ) as $key => $group_id ) {
+			if ( isset( $names[ $group_id ] ) ) {
+				$found[ (string) $key ] = $names[ $group_id ];
+			}
+		}
+
+		return self::respond(
+			array(
+				'groups' => $groups,
+				// An object even when empty or when a term looks like a number.
+				'have'   => (object) TBTDIC_Words::have_map( $terms, $found, $prep ),
 			)
 		);
 	}

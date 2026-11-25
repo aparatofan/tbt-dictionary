@@ -28,6 +28,9 @@ class TBTDIC_Words {
 	const MAX_GROUPS = 200;
 	const MAX_WORDS  = 5000;
 
+	/** POST /lookup: most terms in one request (0.3.0). */
+	const LOOKUP_MAX = 300;
+
 	/** Learning defaults (AYS's real settings); learnt is TBTDIC_LEARNT_DEFAULT. */
 	const RIGHT_DEFAULT = 1.0;
 	const WRONG_DEFAULT = 0.25;
@@ -109,6 +112,78 @@ class TBTDIC_Words {
 	 */
 	public static function key( $s ) {
 		return self::fold( self::clean_term( $s ) );
+	}
+
+	/**
+	 * The distinct non-empty keys of a list of sent terms (POST /lookup).
+	 * Non-string entries are ignored.
+	 *
+	 * @param array         $terms Terms as sent.
+	 * @param callable|null $prep  Applied to each term before key(), as
+	 *                             create_word() does (sanitize_text_field).
+	 * @return string[]
+	 */
+	public static function lookup_keys( array $terms, $prep = null ) {
+		$keys = array();
+		foreach ( $terms as $term ) {
+			$key = self::lookup_key( $term, $prep );
+			if ( '' !== $key ) {
+				$keys[ $key ] = true;
+			}
+		}
+		return array_map( 'strval', array_keys( $keys ) );
+	}
+
+	/**
+	 * Which sent terms are already in the dictionary: term as sent → the
+	 * name of the group its word is in. Terms not found are left out.
+	 *
+	 * @param array         $terms Terms as sent.
+	 * @param array         $found key() → group name, for the keys found.
+	 * @param callable|null $prep  As in lookup_keys().
+	 * @return array<string,string>
+	 */
+	public static function have_map( array $terms, array $found, $prep = null ) {
+		$have = array();
+		foreach ( $terms as $term ) {
+			$key = self::lookup_key( $term, $prep );
+			if ( '' !== $key && isset( $found[ $key ] ) ) {
+				$have[ (string) $term ] = (string) $found[ $key ];
+			}
+		}
+		return $have;
+	}
+
+	/**
+	 * @param mixed         $term A sent term.
+	 * @param callable|null $prep Optional clean-up first.
+	 * @return string The key, or '' for an empty or non-string term.
+	 */
+	private static function lookup_key( $term, $prep ) {
+		if ( ! is_string( $term ) ) {
+			return '';
+		}
+		if ( null !== $prep ) {
+			$term = (string) call_user_func( $prep, $term );
+		}
+		return self::key( $term );
+	}
+
+	/**
+	 * Groups A–Z by name, ignoring case and accents; ties by ID.
+	 *
+	 * @param array[] $groups Rows with id and name.
+	 * @return array[]
+	 */
+	public static function sort_by_name( array $groups ) {
+		usort(
+			$groups,
+			static function ( $a, $b ) {
+				$c = strcmp( self::fold( (string) $a['name'] ), self::fold( (string) $b['name'] ) );
+				return 0 !== $c ? $c : ( (int) $a['id'] <=> (int) $b['id'] );
+			}
+		);
+		return $groups;
 	}
 
 	/**

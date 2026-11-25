@@ -522,6 +522,58 @@ class TBTDIC_DB {
 	}
 
 	/**
+	 * A user's groups with their word counts, in one query (POST /lookup).
+	 *
+	 * @param int $user_id Owner.
+	 * @return array[] id, name, word_count; unsorted.
+	 */
+	public static function groups_with_counts( $user_id ) {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT g.id, g.name, COUNT(w.id) AS word_count FROM ' . self::groups_table() . ' g'
+				. ' LEFT JOIN ' . self::words_table() . ' w ON w.group_id = g.id AND w.user_id = g.user_id'
+				. ' WHERE g.user_id = %d GROUP BY g.id, g.name',
+				$user_id
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * The group of each of these keys a user has, in one query (POST
+	 * /lookup). Where two words share a key, the oldest one's group.
+	 *
+	 * @param int      $user_id Owner.
+	 * @param string[] $keys    Distinct TBTDIC_Words::key() values.
+	 * @return array<string,int> term_key → group_id.
+	 */
+	public static function group_ids_by_keys( $user_id, array $keys ) {
+		if ( ! $keys ) {
+			return array();
+		}
+		global $wpdb;
+		$in   = implode( ', ', array_fill( 0, count( $keys ), '%s' ) );
+		$args = array_merge( array( (int) $user_id ), array_values( $keys ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT term_key, group_id FROM ' . self::words_table() . " WHERE user_id = %d AND term_key IN ({$in}) ORDER BY id ASC",
+				$args
+			),
+			ARRAY_A
+		);
+		$out = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $r ) {
+			$key = (string) $r['term_key'];
+			if ( ! isset( $out[ $key ] ) ) {
+				$out[ $key ] = (int) $r['group_id'];
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * @param int $user_id Owner.
 	 * @param int $word_id Word ID.
 	 */
